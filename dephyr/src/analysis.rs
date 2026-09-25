@@ -17,7 +17,7 @@ impl Default for Queries {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize)]
 pub struct ImportFinding {
     pub module: String,
     pub name: Option<String>,
@@ -38,7 +38,7 @@ impl ImportFinding {
     }
 }
 
-#[derive(Debug, PartialEq, Default, Clone)]
+#[derive(Debug, PartialEq, Default, Clone, serde::Serialize)]
 pub struct CallFinding {
     pub function: String,
     pub attribute: Option<String>,

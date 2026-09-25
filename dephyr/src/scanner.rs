@@ -6,7 +6,7 @@ use crate::{
 use std::fs::File;
 use std::{io::Read, path::Path};
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, serde::Serialize)]
 pub struct ScanRes {
     file: String,
     imports: Vec<ImportFinding>,
