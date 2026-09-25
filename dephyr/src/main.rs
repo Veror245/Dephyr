@@ -14,5 +14,5 @@ fn main() {
     // let files = walker::walk_dir(path);
     // println!("{:?}", files);
 
-    scanner::scan(path, "numpy");
+    scanner::scan(path, "requests");
 }
