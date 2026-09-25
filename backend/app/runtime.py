@@ -29,7 +29,10 @@ class Runtime:
                 # Client can reconnect and replay durable events from SQLite.
                 self.listeners[job_id].discard(q)
 
-    async def submit(self, kind, repo, cve_id, worker, *, git_job=False):
+    async def submit(self, kind, repo, cve_id, worker=None, *, git_job=False):
+        if callable(cve_id) and worker is None:
+            worker = cve_id
+            cve_id = None
         if len(self.tasks) >= 100:
             raise HTTPException(503, 'Job queue is full')
         job_id = uuid.uuid4().hex

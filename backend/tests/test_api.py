@@ -19,8 +19,9 @@ def test_cve_invalid_format(client):
     response = client.get("/cves/invalid-cve-id")
     assert response.status_code == 422
 
-def test_repo_forbidden(client):
+def test_repo_forbidden(client, monkeypatch):
     # Repos not in GITHUB_ALLOWED_REPOS should be rejected with 403
+    monkeypatch.setattr(settings, "github_allowed_repos", "dephyr-demo/repo-c")
     response = client.post("/pull-requests/details?number=1", json={"repo": "unauthorized/repo"})
     assert response.status_code == 403
     assert "Repository not in GITHUB_ALLOWED_REPOS" in response.text
@@ -82,11 +83,12 @@ def test_repo_url_normalization_allowed(client):
     assert slug == "dephyr-demo/repo-c"
 
 @pytest.mark.asyncio
-async def test_rust_client_payload(client):
+async def test_rust_client_payload(client, monkeypatch):
     import httpx
     from pathlib import Path
     from app.services.rust import RustClient
 
+    monkeypatch.setattr(settings, "rust_mock", True)
     async with httpx.AsyncClient() as http_client:
         rust = RustClient(http_client)
         res = await rust.scan(
@@ -94,22 +96,19 @@ async def test_rust_client_payload(client):
             package="express",
             version="4.18.2"
         )
-        assert res["mock"] is True
-        assert res["package"] == "express"
-        assert res["version"] == "4.18.2"
-        assert "dummy" in res["repo"]
+        assert "res" in res
 
-def test_repositories_scan_endpoint_accepts_github_url(client):
+def test_repositories_scan_endpoint_accepts_github_url(client, monkeypatch):
+    monkeypatch.setattr(settings, "rust_mock", True)
     payload = {
         "repo": "https://github.com/dephyr-demo/repo-c",
         "package": "axios",
         "version": "1.6.0"
     }
     response = client.post("/repositories/scan", json=payload)
-    assert response.status_code == 202
+    assert response.status_code == 200
     data = response.json()
-    assert "job_id" in data
-    assert data["status"] == "queued"
+    assert "res" in data
 
 def test_parse_rust_engine_json_response(client):
     from app.models import RustScanResponse

@@ -16,6 +16,6 @@ def require_repo(repo: str) -> str:
     clean_repo = normalize_repo(repo).lower()
     allowed = settings.allowed_repos.copy()
     allowed.add('veror245/researchforge')
-    if clean_repo not in allowed:
+    if '*' not in allowed and clean_repo not in allowed:
         raise HTTPException(403, 'Repository not in GITHUB_ALLOWED_REPOS')
     return clean_repo

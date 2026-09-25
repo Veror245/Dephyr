@@ -88,40 +88,18 @@ async def metadata(body: RepoRef, request: Request):
         'html_url': data.get('html_url', f'https://github.com/{clean_repo}')
     }
 
-@router.post('/scan', status_code=202)
+@router.post('/scan', status_code=200)
 async def scan(body: ScanRequest, request: Request):
     clean_repo = require_repo(body.repo)
     http = request.app.state.http
 
-    async def worker(job_id):
-        # Resolve default branch safely
-        default_branch = 'main'
-        try:
-            repo_info = await GitHub(http).repo(clean_repo)
-            default_branch = repo_info.get('default_branch', 'main')
-        except Exception:
-            default_branch = 'main'
-
-        root = await clone(clean_repo, default_branch)
-        try:
-            await runtime.emit(job_id, 'REPOSITORY_CLONED', f'Repository {clean_repo} cloned', {'path': str(root)})
-            
-            # Resolve version (from request body or auto-detected from repository files)
-            version = body.version or detect_package_version(root, body.package) or 'unknown'
-            await runtime.emit(job_id, 'DEPENDENCY_RESOLVED', f'Identified {body.package} version: {version}', {'version': version})
-            
-            # Dispatch scan to Rust engine with { repo, package, version }
-            result = await RustClient(http).scan(
-                repo_path=root,
-                package=body.package,
-                version=version
-            )
-            await runtime.emit(job_id, 'SCAN_RESULT', 'Rust analysis completed', result)
-            return result
-        finally:
-            shutil.rmtree(root, ignore_errors=True)
-
-    return await runtime.submit('scan', clean_repo, worker, git_job=True)
+    result = await RustClient(http).scan(
+        repo_path=clean_repo,
+        package=body.package,
+        version=body.version
+    )
+    print("Rust Engine Response:", result)
+    return result
 
 @router.post('/scan/callback', status_code=200)
 async def scan_callback(payload: RustScanResponse, job_id: str | None = None):
