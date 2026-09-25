@@ -98,8 +98,15 @@ async def test_rust_client_payload(client, monkeypatch):
         )
         assert "res" in res
 
-def test_repositories_scan_endpoint_accepts_github_url(client, monkeypatch):
+def test_repositories_scan_endpoint_accepts_github_url(client, monkeypatch, tmp_path):
     monkeypatch.setattr(settings, "rust_mock", True)
+
+    async def mock_clone(repo, base_branch="main"):
+        dummy_dir = tmp_path / "dummy_repo"
+        dummy_dir.mkdir(parents=True, exist_ok=True)
+        return dummy_dir
+
+    monkeypatch.setattr("app.routers.repositories.clone", mock_clone)
     payload = {
         "repo": "https://github.com/dephyr-demo/repo-c",
         "package": "axios",

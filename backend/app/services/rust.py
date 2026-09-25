@@ -1,7 +1,6 @@
 import httpx
 from fastapi import HTTPException
 from app.config import settings
-from app.models import RustScanResponse
 
 class RustClient:
     def __init__(self, client: httpx.AsyncClient):
@@ -27,12 +26,14 @@ class RustClient:
             )
             response.raise_for_status()
             data = response.json()
-            if not isinstance(data, dict):
-                raise ValueError('Invalid Rust response: payload is not a JSON object')
-
-            if 'res' in data:
-                scan_resp = RustScanResponse.model_validate(data)
-                return scan_resp.model_dump()
+            print(f"[RustClient] Raw response from {target_url}:", data)
             return data
-        except (httpx.RequestError, httpx.HTTPStatusError, ValueError) as exc:
-            raise HTTPException(502, f'Rust scan failed or returned invalid data: {exc}') from exc
+        except httpx.ConnectError as exc:
+            print(f"[RustClient] Connection error reaching {target_url}:", exc)
+            raise HTTPException(502, f'Cannot connect to Rust engine at {target_url}. Is the Rust server running on port 3000?') from exc
+        except httpx.HTTPStatusError as exc:
+            print(f"[RustClient] HTTP status error from {target_url}:", exc.response.status_code, exc.response.text)
+            raise HTTPException(502, f'Rust engine returned HTTP {exc.response.status_code}') from exc
+        except Exception as exc:
+            print(f"[RustClient] Unexpected error calling {target_url}:", exc)
+            raise HTTPException(502, f'Rust scan error: {exc}') from exc

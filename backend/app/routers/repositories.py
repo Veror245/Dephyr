@@ -93,13 +93,31 @@ async def scan(body: ScanRequest, request: Request):
     clean_repo = require_repo(body.repo)
     http = request.app.state.http
 
-    result = await RustClient(http).scan(
-        repo_path=clean_repo,
-        package=body.package,
-        version=body.version
-    )
-    print("Rust Engine Response:", result)
-    return result
+    default_branch = 'main'
+    try:
+        repo_info = await GitHub(http).repo(clean_repo)
+        default_branch = repo_info.get('default_branch', 'main')
+    except Exception:
+        default_branch = 'main'
+
+    root = await clone(clean_repo, default_branch)
+    try:
+        try:
+            rel_path = root.relative_to(Path.cwd()).as_posix()
+        except ValueError:
+            rel_path = str(root)
+
+        version = body.version or detect_package_version(root, body.package) or 'latest'
+
+        result = await RustClient(http).scan(
+            repo_path=rel_path,
+            package=body.package,
+            version=version
+        )
+        print("Rust Engine Response:", result)
+        return result
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
 
 @router.post('/scan/callback', status_code=200)
 async def scan_callback(payload: RustScanResponse, job_id: str | None = None):
