@@ -84,7 +84,7 @@ fn find_requirements_files(repo: &Path) -> Vec<PathBuf> {
 
 /// Returns Some(version) if package is found. Version is the RHS of == if pinned,
 /// otherwise None (constraint like >=2.0 isn't a resolved version).
-fn requirements_lookup(text: &str, target: &str) -> Option<Option<String>> {
+pub fn requirements_lookup(text: &str, target: &str) -> Option<Option<String>> {
     for raw in text.lines() {
         let line = raw.trim();
         if line.is_empty() || line.starts_with('#') {
@@ -129,7 +129,22 @@ fn requirements_lookup(text: &str, target: &str) -> Option<Option<String>> {
 /// Returns Some(version) if declared. Version from PEP 621 is a constraint spec,
 /// not resolved; from Poetry it may be a caret/tilde range. Both returned as-is.
 fn pyproject_lookup(text: &str, target: &str) -> Option<Option<String>> {
-    let doc: Value = text.parse().ok()?;
+    // eprintln!(
+    //     "len={} bytes={:?}",
+    //     text.len(),
+    //     &text.as_bytes().iter().take(20).collect::<Vec<_>>()
+    // );
+    let doc: Value = match toml::from_str(text) {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("TOML parse error: {e}");
+            return None;
+        }
+    };
+    // eprintln!(
+    //     "parsed keys: {:?}",
+    //     doc.as_table().map(|t| t.keys().collect::<Vec<_>>())
+    // );
 
     // PEP 621: [project] dependencies = ["requests>=2.31", "flask"]
     if let Some(arr) = doc
@@ -187,4 +202,60 @@ fn pyproject_lookup(text: &str, target: &str) -> Option<Option<String>> {
     }
 
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn req_pinned() {
+        assert_eq!(
+            requirements_lookup("requests==2.31.0\n", "requests"),
+            Some(Some("2.31.0".into()))
+        );
+    }
+
+    #[test]
+    fn req_unpinned() {
+        assert_eq!(
+            requirements_lookup("requests>=2.0\n", "requests"),
+            Some(None)
+        );
+    }
+
+    #[test]
+    fn req_alias_normalization() {
+        assert_eq!(
+            requirements_lookup("Flask_Cors==4.0\n", "flask-cors"),
+            Some(Some("4.0".into()))
+        );
+    }
+
+    #[test]
+    fn req_no_false_positive() {
+        assert_eq!(
+            requirements_lookup("requests-mock==1.0\n", "requests"),
+            None
+        );
+    }
+
+    #[test]
+    fn pyproject_pep621() {
+        let t = r#"
+[project]
+dependencies = ["requests>=2.31", "flask==3.0"]
+"#;
+        assert_eq!(pyproject_lookup(t, "flask"), Some(Some("3.0".into())));
+    }
+
+    #[test]
+    fn pyproject_poetry() {
+        let t = r#"
+[tool.poetry.dependencies]
+requests = "^2.31"
+flask = { version = "3.0.1", extras = ["async"] }
+"#;
+        assert_eq!(pyproject_lookup(t, "flask"), Some(Some("3.0.1".into())));
+    }
 }
