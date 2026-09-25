@@ -11,7 +11,7 @@ from tools import agent_tools
 # LLM & STATIC NODES
 # ============================================================================
 groq_llm = ChatGroq(
-    model="llama3-70b-8192", 
+    model="openai/gpt-oss-120b",
     temperature=0.0,
     max_retries=2
 )
