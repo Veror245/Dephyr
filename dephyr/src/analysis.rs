@@ -17,7 +17,7 @@ impl Default for Queries {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct ImportFinding {
     pub module: String,
     pub name: Option<String>,
@@ -38,7 +38,7 @@ impl ImportFinding {
     }
 }
 
-#[derive(Debug, PartialEq, Default)]
+#[derive(Debug, PartialEq, Default, Clone)]
 pub struct CallFinding {
     pub function: String,
     pub attribute: Option<String>,
@@ -127,18 +127,19 @@ pub fn find_calls(tree: &Tree, src: &str, query: &Query) -> Vec<CallFinding> {
             let cap_name = query.capture_names()[caps.index as usize];
 
             let mut cf = CallFinding::default();
-            cf.start = caps.node.start_position().row + 1;
-            cf.end = caps.node.end_position().row + 1;
 
             match cap_name {
                 "kind.plain" => {
                     if let Some(func) = captures.next() {
                         cf.function = src[func.node.byte_range()].to_string();
+                        cf.start = func.node.start_position().row + 1;
+                        cf.end = func.node.end_position().row + 1;
                     }
                     if let Some(args) = captures.next()
                         && &src[args.node.byte_range()] != "()"
                     {
                         cf.args = Some(src[args.node.byte_range()].to_string());
+                        cf.end = args.node.end_position().row + 1;
                     }
 
                     out.push(cf);
@@ -147,15 +148,19 @@ pub fn find_calls(tree: &Tree, src: &str, query: &Query) -> Vec<CallFinding> {
                 "kind.keyword" => {
                     if let Some(func) = captures.next() {
                         cf.function = src[func.node.byte_range()].to_string();
+                        cf.start = func.node.start_position().row + 1;
+                        cf.end = func.node.end_position().row + 1;
                     }
                     if let Some(func) = captures.next() {
                         cf.attribute = Some(src[func.node.byte_range()].to_string());
+                        cf.end = func.node.end_position().row + 1;
                     }
 
                     if let Some(args) = captures.next()
                         && &src[args.node.byte_range()] != "()"
                     {
                         cf.args = Some(src[args.node.byte_range()].to_string());
+                        cf.end = args.node.end_position().row + 1;
                     }
 
                     out.push(cf);
