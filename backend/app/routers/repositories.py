@@ -117,6 +117,7 @@ async def scan(body: ScanRequest, request: Request):
                 version=version
             )
             await runtime.emit(job_id, 'SCAN_RESULT', 'Rust analysis completed', result)
+            print(result)
             return result
         finally:
             shutil.rmtree(root, ignore_errors=True)
