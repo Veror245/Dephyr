@@ -1,55 +1,55 @@
 import json
+from typing import List, Dict
 from langchain_core.tools import tool
-from config import _post, _get, MOCK_MODE
+from config import _post, _post_and_wait
 
 # ============================================================================
 # DYNAMIC TOOLS
 # ============================================================================
 @tool
-def create_branch(repo_name: str, branch_name: str) -> str:
-    """Creates a new Git branch for the remediation."""
-    _post("/repository/branch", {"repo_name": repo_name, "branch_name": branch_name})
-    return f"Branch {branch_name} created successfully."
-
-@tool
-def bump_dependency(repo_name: str, package: str, target_version: str) -> str:
-    """Upgrades a vulnerable dependency to a safe version."""
-    _post("/repository/dependency/bump", {"repo_name": repo_name, "package": package, "version": target_version})
-    return f"Bumped {package} to {target_version}."
-
-@tool
-def apply_known_migration(repo_name: str, file_path: str, migration_type: str) -> str:
-    """Applies a standard API migration if the dependency bump introduced breaking changes."""
-    _post("/repository/migration/apply", {"repo_name": repo_name, "file_path": file_path, "migration_type": migration_type})
-    return f"Applied {migration_type} migration to {file_path}."
-
-@tool
-def create_pull_request(repo_name: str, branch_name: str, title: str) -> str:
-    """Opens a formal Pull Request on GitHub so the CI tests can start."""
-    _post("/pull-requests", {"repo_name": repo_name, "branch_name": branch_name, "title": title})
-    return f"Pull request '{title}' opened successfully for branch {branch_name}."
-
-@tool
-def inspect_diff(pr_id: str) -> str:
-    """Retrieves the Git diff of the current proposed changes to verify correctness."""
-    res = _get(f"/pull-requests/{pr_id}/diff")
+def trigger_remediation(repo_name: str, cve_id: str, title: str, description: str, patches: List[Dict[str, str]]) -> str:
+    """
+    Clones the repo, creates a branch, applies patches, and opens a PR.
+    `patches` format: [{"path": "requirements.txt", "old": "requests==2.20", "new": "requests==2.31"}]
+    Returns the PR number and branch name.
+    """
+    res = _post_and_wait("/remediation/apply", {
+        "repo": repo_name,
+        "base_branch": "main",
+        "cve_id": cve_id,
+        "title": title,
+        "description": description,
+        "patches": patches
+    })
     return json.dumps(res)
 
 @tool
-def apply_followup_patch(pr_id: str, file_path: str, replacement_code: str) -> str:
-    """Pushes a custom code patch to fix a failing CI build."""
-    _post(f"/pull-requests/{pr_id}/retry", {"file_path": file_path, "replacement_code": replacement_code})
-    return "Patch pushed successfully."
-
-@tool
-def rerun_verification(pr_id: str) -> str:
-    """Triggers CI pipeline to run again. Call this after bumping, creating a PR, or patching to check if tests pass."""
-    if MOCK_MODE:
-        return json.dumps({"passed": True, "raw_logs": ""})
-    res = _post(f"/pull-requests/{pr_id}/verify", {})
+def check_ci_status(repo_name: str, pr_number: int) -> str:
+    """
+    Checks the GitHub Actions CI status for a specific PR.
+    Returns status (success, failed, pending) and run_id.
+    """
+    res = _post(f"/pull-requests/ci?number={pr_number}", {"repo": repo_name})
     return json.dumps(res)
 
-agent_tools = [
-    create_branch, bump_dependency, apply_known_migration, 
-    create_pull_request, inspect_diff, apply_followup_patch, rerun_verification
-]
+@tool
+def get_ci_logs(repo_name: str, run_id: int) -> str:
+    """Downloads raw CI failure logs for a specific run_id."""
+    res = _post(f"/pull-requests/logs?run_id={run_id}", {"repo": repo_name})
+    return json.dumps(res)
+
+@tool
+def apply_followup_patch(repo_name: str, branch: str, message: str, patches: List[Dict[str, str]]) -> str:
+    """
+    Applies custom code fixes to an existing branch if CI tests fail.
+    `patches` format: [{"path": "src/main.py", "old": "broken()", "new": "fixed()"}]
+    """
+    res = _post_and_wait("/remediation/followup", {
+        "repo": repo_name,
+        "branch": branch,
+        "message": message,
+        "patches": patches
+    })
+    return json.dumps(res)
+
+agent_tools = [trigger_remediation, check_ci_status, get_ci_logs, apply_followup_patch]

@@ -7,9 +7,6 @@ from nodes import (
     tool_executor_node
 )
 
-# ============================================================================
-# GRAPH ROUTING
-# ============================================================================
 def route_after_exposure(state: DephyrState) -> str:
     report = state.get("exposure_report")
     if not report or not report.remediation_required:

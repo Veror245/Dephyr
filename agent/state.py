@@ -4,8 +4,6 @@ from pydantic import BaseModel, Field
 from langchain_core.messages import BaseMessage
 from langgraph.graph.message import add_messages
 
-from config import _post, MOCK_MODE, EMIT_HTTP
-
 # ============================================================================
 # SCHEMAS & EVENTS
 # ============================================================================
@@ -23,14 +21,6 @@ class AgentEvent(BaseModel):
     message: str
     data: Dict[str, Any] = Field(default_factory=dict)
 
-    def emit(self) -> None:
-        if MOCK_MODE and not EMIT_HTTP:
-            return
-        try:
-            _post("/agent-events", self.model_dump())
-        except Exception:
-            pass
-
 class DephyrState(TypedDict):
     repo_name: str
     repo_path: str
@@ -39,6 +29,6 @@ class DephyrState(TypedDict):
     vulnerable_symbol: str
     scan_results: Optional[dict]
     exposure_report: Optional[ExposureReport]
-    messages: Annotated[list[BaseMessage], add_messages] # Tracks dynamic ReAct loop
+    messages: Annotated[list[BaseMessage], add_messages]
     pr_id: Optional[str]
     ci_passed: bool
