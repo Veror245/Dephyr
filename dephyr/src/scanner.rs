@@ -10,13 +10,18 @@ use std::{io::Read, path::Path};
 pub struct ScanRes {
     file: String,
     imports: Vec<ImportFinding>,
+    total_imports: usize,
     calls: Vec<CallFinding>,
+    total_calls: usize,
 }
 
 pub fn scan(path: &Path, import: &str) -> Vec<ScanRes> {
     let mut res: Vec<ScanRes> = Vec::new();
     let files = walker::walk_dir(path);
     let depcheck = deps::dependency_info(path, import).declared;
+
+    let mut impc = 0;
+    let mut callc = 0;
 
     if depcheck {
         for src in &files {
@@ -39,6 +44,7 @@ pub fn scan(path: &Path, import: &str) -> Vec<ScanRes> {
             for imp in imports {
                 // println!("{}", imp.module);
                 if imp.module == import {
+                    impc += 1;
                     imp_used = true;
                     alias = imp.clone().alias.unwrap_or(String::from("None"));
                     ress.file = src.clone();
@@ -47,13 +53,15 @@ pub fn scan(path: &Path, import: &str) -> Vec<ScanRes> {
                     println!("{:#?}", ress);
                 }
             }
+            ress.total_imports = impc;
 
             for func in calls {
+                callc += 1;
                 if func.function == import || func.function == alias {
                     ress.calls.push(func);
                 }
             }
-
+            ress.total_calls = callc;
             if imp_used {
                 res.push(ress);
             }
