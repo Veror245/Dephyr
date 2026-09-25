@@ -85,9 +85,9 @@ export default function UserMenu({ compact = false }: UserMenuProps) {
           <Link
             href="/"
             onClick={() => setIsOpen(false)}
-            className="flex items-center gap-2.5 px-3 py-2 text-xs text-[#ff5252] hover:bg-[#ff5252]/10 rounded-control transition-colors"
+            className=" flex items-center gap-2.5 px-3 py-1 text-xs text-[#ff5252] hover:bg-[#ff5252]/10 rounded-control transition-colors"
           >
-            <LogOut className="w-2.5 h-2.5" />
+            <LogOut className="w-3.5 h-3.5" />
             Sign Out to Landing
           </Link>
         </div>
