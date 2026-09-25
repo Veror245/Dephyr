@@ -19,8 +19,9 @@ def test_cve_invalid_format(client):
     response = client.get("/cves/invalid-cve-id")
     assert response.status_code == 422
 
-def test_repo_forbidden(client):
+def test_repo_forbidden(client, monkeypatch):
     # Repos not in GITHUB_ALLOWED_REPOS should be rejected with 403
+    monkeypatch.setattr(settings, "github_allowed_repos", "dephyr-demo/repo-c")
     response = client.post("/pull-requests/details?number=1", json={"repo": "unauthorized/repo"})
     assert response.status_code == 403
     assert "Repository not in GITHUB_ALLOWED_REPOS" in response.text

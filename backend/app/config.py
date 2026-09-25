@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     api_key: str = ''
     allow_unauthenticated: bool = True
     github_token: str = ''
-    github_allowed_repos: str = 'dephyr-demo/repo-c,dephyr-demo/gateway-proxy,dephyr-demo/repo-a'
+    github_allowed_repos: str = 'dephyr-demo/repo-c,dephyr-demo/gateway-proxy,dephyr-demo/repo-a,*'
     github_api: str = 'https://api.github.com'
     nvd_api_key: str = ''
     rust_url: str = 'http://127.0.0.1:3000/scan'
