@@ -23,7 +23,7 @@ export default function SidebarNavItem({
   onClick,
 }: SidebarNavItemProps) {
   const pathname = usePathname();
-  
+
   // Exact match for /dashboard, startsWith for subroutes
   const isActive =
     href === "/dashboard"
@@ -34,19 +34,15 @@ export default function SidebarNavItem({
     <Link
       href={href}
       onClick={onClick}
-      className={`group relative flex items-center gap-3 px-3.5 py-2.5 rounded-card text-sm font-medium transition-all duration-200 ${
+      data-active={isActive ? "true" : "false"}
+      className={`group relative z-10 flex items-center gap-3 px-3.5 py-2.5 rounded-card text-sm font-medium transition-colors duration-200 ${
         isActive
-          ? "bg-[#28282a] text-white shadow-sm"
-          : "text-[#8e8e8e] hover:text-[#ffffff] hover:bg-[#161619]"
+          ? "text-white"
+          : "text-[#8e8e8e] hover:text-white hover:bg-white/[0.04]"
       }`}
     >
-      {/* Active left indicator dot (matching landing page active dot aesthetic) */}
-      {isActive && (
-        <span className="absolute left-1.5 w-1.5 h-1.5 rounded-full bg-[#ff7300] shadow-[0_0_8px_#ff7300]" />
-      )}
-
       <Icon
-        className={`w-4 h-4 shrink-0 transition-colors ${
+        className={`w-4 h-4 shrink-0 transition-colors duration-200 ${
           isActive ? "text-[#ff7300]" : "text-[#8e8e8e] group-hover:text-white"
         }`}
       />
@@ -55,7 +51,7 @@ export default function SidebarNavItem({
 
       {badge !== undefined && (
         <span
-          className={`text-[11px] font-semibold px-2 py-0.5 rounded-pill ${
+          className={`text-[11px] font-semibold px-2 py-0.5 rounded-pill transition-colors ${
             badgeColor === "amber"
               ? "bg-[#ff7300]/15 text-[#ff8c2e] border border-[#ff7300]/30"
               : badgeColor === "green"

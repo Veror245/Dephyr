@@ -7,9 +7,9 @@ import { Settings } from "lucide-react";
 
 export default function SettingsPage() {
   return (
-    <div className="space-y-8 w-full">
-      {/* Top Banner */}
-      <div className="p-6 lg:p-7 rounded-panel bg-[#111113] border border-white/[0.08] flex flex-col md:flex-row md:items-center justify-between gap-6">
+    <div className="space-y-6 w-full">
+      {/* Top Banner: Floating rounded panel */}
+      <div className="p-6 lg:p-7 rounded-panel bg-[#111113] border border-white/[0.08] shadow-card flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-start sm:items-center gap-4">
           <div className="w-10 h-10 rounded-full bg-[#ff7300]/10 border border-[#ff7300]/25 flex items-center justify-center text-[#ff7300] shrink-0">
             <Settings className="w-5 h-5" />
@@ -32,10 +32,10 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Safety Policy Form */}
+      {/* Safety Policy Form: Floating rounded panel */}
       <PolicySettingsForm />
 
-      {/* Integrations List */}
+      {/* Integrations List: Floating rounded panel */}
       <IntegrationsList />
     </div>
   );
