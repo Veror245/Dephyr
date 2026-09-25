@@ -1,15 +1,12 @@
 use crate::{
     analysis,
     analysis::{CallFinding, ImportFinding, Queries},
-    parser, queries, walker,
+    parser, walker,
 };
 use std::fs::File;
-use std::{
-    io::Read,
-    path::{Path, PathBuf},
-};
+use std::{io::Read, path::Path};
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, serde::Serialize)]
 pub struct ScanRes {
     file: String,
     imports: Vec<ImportFinding>,
@@ -17,7 +14,7 @@ pub struct ScanRes {
 }
 
 pub fn scan(path: &Path, import: &str) -> Vec<ScanRes> {
-    let res: Vec<ScanRes> = Vec::new();
+    let mut res: Vec<ScanRes> = Vec::new();
     let files = walker::walk_dir(path);
 
     for src in &files {
@@ -30,7 +27,9 @@ pub fn scan(path: &Path, import: &str) -> Vec<ScanRes> {
 
         let tree = parser::parse_python(&src).unwrap();
         let mut ress = ScanRes::default();
-        let mut alias: String;
+        let mut alias: String = String::new();
+
+        let mut imp_used = false;
 
         let calls = analysis::find_calls(&tree, &scode, &Queries::default().calls);
         let imports = analysis::find_imports(&tree, &scode, &Queries::default().imports);
@@ -38,6 +37,7 @@ pub fn scan(path: &Path, import: &str) -> Vec<ScanRes> {
         for imp in imports {
             // println!("{}", imp.module);
             if imp.module == import {
+                imp_used = true;
                 alias = imp.clone().alias.unwrap_or(String::from("None"));
                 ress.file = src.clone();
                 ress.imports.push(imp);
@@ -46,7 +46,17 @@ pub fn scan(path: &Path, import: &str) -> Vec<ScanRes> {
             }
         }
 
-        println!("{}", src);
+        for func in calls {
+            if func.function == import || func.function == alias {
+                ress.calls.push(func);
+            }
+        }
+
+        if imp_used {
+            res.push(ress);
+        }
+
+        println!("{:#?}", res);
     }
 
     // println!("{:#?}", files);
