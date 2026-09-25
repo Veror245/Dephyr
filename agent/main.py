@@ -174,3 +174,32 @@ def exposure_analyst_node(state: DephyrState) -> dict:
         "findings": json.dumps(state["scan_results"])
     })
     return {"exposure_report": report}
+
+# ============================================================================
+# DYNAMIC REACT AGENT NODE
+# ============================================================================
+dynamic_prompt = ChatPromptTemplate.from_messages([
+    ("system", (
+        "You are Dephyr's Autonomous Remediation Engineer. You must fix {cve_id} in repository {repo_name}. "
+        "The exposure report is: {report}. "
+        "Use your tools to create a branch, bump the dependency, open a Pull Request, patch breaking changes if tests fail, and verify via CI. "
+        "Do not stop until `rerun_verification` confirms tests pass. If tests pass, stop calling tools and summarize your success."
+    )),
+    # Critical Fix: Groq requires at least one human message to not crash when {messages} is empty.
+    ("human", "Begin or continue the remediation process. Check your tool results to decide the next step."),
+    ("placeholder", "{messages}")
+])
+
+dynamic_chain = dynamic_prompt | groq_llm.bind_tools(agent_tools)
+
+def dynamic_remediation_node(state: DephyrState) -> dict:
+    """Evaluates the current state and decides which tool to call next."""
+    response = dynamic_chain.invoke({
+        "cve_id": state["cve_id"],
+        "repo_name": state["repo_name"],
+        "report": state["exposure_report"].model_dump_json(),
+        "messages": state.get("messages", [])
+    })
+    return {"messages": [response]}
+
+tool_executor_node = ToolNode(agent_tools)
