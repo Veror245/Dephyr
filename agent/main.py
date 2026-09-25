@@ -89,7 +89,7 @@ class DephyrState(TypedDict):
     pr_id: Optional[str]
     ci_passed: bool
 
-    # ============================================================================
+# ============================================================================
 # DYNAMIC TOOLS
 # ============================================================================
 @tool
@@ -140,3 +140,37 @@ agent_tools = [
     create_branch, bump_dependency, apply_known_migration, 
     create_pull_request, inspect_diff, apply_followup_patch, rerun_verification
 ]
+
+# ============================================================================
+# LLM & STATIC NODES
+# ============================================================================
+groq_llm = ChatGroq(
+    model="llama3-70b-8192", 
+    temperature=0.0,
+    max_retries=2
+)
+
+analyst_prompt = ChatPromptTemplate.from_messages([
+    ("system", "You are Dephyr's Security Analyst. Evaluate the Rust AST scan. Output an ExposureReport."),
+    ("human", "Package: {package}\nSymbol: {symbol}\nScan Findings:\n{findings}")
+])
+analyst_chain = analyst_prompt | groq_llm.with_structured_output(ExposureReport)
+
+def investigator_node(state: DephyrState) -> dict:
+    if MOCK_MODE:
+        findings = {"reachable": True, "input_tainted": True, "call_sites": ["src/api/query.js"]}
+    else:
+        findings = _post("/repositories/scan", {
+            "repo_path": state["repo_path"],
+            "package": state["package_name"],
+            "symbol": state["vulnerable_symbol"]
+        })
+    return {"scan_results": findings}
+
+def exposure_analyst_node(state: DephyrState) -> dict:
+    report: ExposureReport = analyst_chain.invoke({
+        "package": state["package_name"],
+        "symbol": state["vulnerable_symbol"],
+        "findings": json.dumps(state["scan_results"])
+    })
+    return {"exposure_report": report}
