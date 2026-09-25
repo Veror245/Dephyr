@@ -13,6 +13,7 @@ pub struct ScanRes {
     total_imports: usize,
     calls: Vec<CallFinding>,
     total_calls: usize,
+    exposure_level: u8,
 }
 
 pub fn scan(path: &Path, import: &str) -> Vec<ScanRes> {
@@ -63,6 +64,11 @@ pub fn scan(path: &Path, import: &str) -> Vec<ScanRes> {
             }
             ress.total_calls = callc;
             if imp_used {
+                if callc == 0 {
+                    ress.exposure_level = 1;
+                } else {
+                    ress.exposure_level = 2;
+                }
                 res.push(ress);
             }
 
