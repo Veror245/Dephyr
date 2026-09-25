@@ -127,7 +127,7 @@ export default function Header({ activeSection, onNavClick }: HeaderProps) {
 
         {/* Desktop Sign in */}
         <Link href="/dashboard" className={styles.signInButton}>
-          Sign in
+          Dashboard
         </Link>
 
         {/* Mobile Burger Button */}
