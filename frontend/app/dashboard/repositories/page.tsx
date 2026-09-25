@@ -12,9 +12,9 @@ export default function RepositoriesPage() {
   );
 
   return (
-    <div className="space-y-8 w-full">
-      {/* Top Banner */}
-      <div className="p-6 lg:p-7 rounded-panel bg-[#111113] border border-white/[0.08] flex flex-col md:flex-row md:items-center justify-between gap-6">
+    <div className="space-y-6 w-full">
+      {/* Top Banner: Floating rounded panel */}
+      <div className="p-6 lg:p-7 rounded-panel bg-[#111113] border border-white/[0.08] shadow-card flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-start sm:items-center gap-4">
           <div className="w-10 h-10 rounded-full bg-[#ff7300]/10 border border-[#ff7300]/25 flex items-center justify-center text-[#ff7300] shrink-0">
             <GitBranch className="w-5 h-5" />
@@ -41,8 +41,8 @@ export default function RepositoriesPage() {
         </div>
       </div>
 
-      {/* Main Split: Balanced 6/6 split on full-width viewports */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
+      {/* Main Split: Consistent gap-6 between table and detail drawer */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
         <div className={selectedRepo ? "xl:col-span-6" : "xl:col-span-12"}>
           <RepositoryTable
             onSelectRepo={(repo) => setSelectedRepo(repo)}
@@ -51,7 +51,7 @@ export default function RepositoriesPage() {
         </div>
 
         {selectedRepo && (
-          <div className="xl:col-span-6 sticky top-24">
+          <div className="xl:col-span-6 sticky top-28">
             <RepositoryDetailDrawer
               repo={selectedRepo}
               onClose={() => setSelectedRepo(null)}

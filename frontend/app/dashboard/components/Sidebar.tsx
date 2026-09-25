@@ -1,8 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { useRef, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import gsap from "gsap";
 import {
   LayoutDashboard,
   ShieldAlert,
@@ -70,6 +72,38 @@ const NAV_ITEMS = [
 ];
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
+  const pathname = usePathname();
+  const navRef = useRef<HTMLDivElement | null>(null);
+  const pillRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!navRef.current || !pillRef.current) return;
+    const activeItem = navRef.current.querySelector<HTMLElement>('[data-active="true"]');
+    if (activeItem) {
+      const top = activeItem.offsetTop;
+      const height = activeItem.offsetHeight;
+
+      const prefersReducedMotion = window.matchMedia(
+        "(prefers-reduced-motion: reduce)"
+      ).matches;
+
+      if (prefersReducedMotion) {
+        gsap.set(pillRef.current, { top, height, opacity: 1 });
+      } else {
+        gsap.to(pillRef.current, {
+          top,
+          height,
+          opacity: 1,
+          duration: 0.28,
+          ease: "power2.out",
+          overwrite: "auto",
+        });
+      }
+    } else {
+      gsap.to(pillRef.current, { opacity: 0, duration: 0.15 });
+    }
+  }, [pathname]);
+
   return (
     <>
       {/* Backdrop overlay for mobile */}
@@ -81,14 +115,16 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         />
       )}
 
-      {/* Main Sidebar Panel */}
+      {/* Main Sidebar Panel - Inset floating rounded panel on desktop */}
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-50 w-64 bg-[#0a0a0c] border-r border-white/[0.08] flex flex-col transition-transform duration-300 ease-in-out lg:translate-x-0 ${
-          isOpen ? "translate-x-0" : "-translate-x-full"
+        className={`fixed z-50 w-64 bg-[#0a0a0c] flex flex-col transition-transform duration-300 ease-in-out overflow-hidden lg:top-6 lg:bottom-6 lg:left-6 lg:rounded-panel lg:border lg:border-white/[0.08] lg:shadow-card lg:translate-x-0 ${
+          isOpen
+            ? "top-0 bottom-0 left-0 border-r border-white/[0.08] translate-x-0"
+            : "top-0 bottom-0 left-0 border-r border-white/[0.08] -translate-x-full"
         }`}
       >
         {/* Top Logo Header */}
-        <div className="h-16 px-5 border-b border-white/[0.06] flex items-center justify-between">
+        <div className="h-16 px-5 border-b border-white/[0.06] flex items-center justify-between shrink-0">
           <Link href="/" className="flex items-center gap-3 group">
             <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center overflow-hidden shadow-sm group-hover:scale-105 transition-transform">
               <Image
@@ -119,8 +155,21 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           </button>
         </div>
 
-        {/* Navigation Item List */}
-        <div className="flex-1 overflow-y-auto px-3 py-4 space-y-1 custom-scrollbar">
+        {/* Navigation Item List with Animated Sliding Pill */}
+        <div
+          ref={navRef}
+          className="relative flex-1 overflow-y-auto px-3 py-4 space-y-1 custom-scrollbar"
+        >
+          {/* Smooth Sliding Active Pill Indicator */}
+          <div
+            ref={pillRef}
+            className="absolute left-3 right-3 rounded-card bg-[#28282a] border border-white/5 shadow-sm pointer-events-none opacity-0"
+            style={{ top: 0, height: 40 }}
+          >
+            {/* Glowing amber active dot attached to sliding pill */}
+            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[#ff7300] shadow-[0_0_8px_#ff7300]" />
+          </div>
+
           <div className="px-3 pb-2 text-[11px] font-semibold text-[#8e8e8e] uppercase tracking-wider">
             Operations
           </div>
@@ -150,7 +199,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         </div>
 
         {/* Bottom Support & Profile Section */}
-        <div className="p-3 border-t border-white/[0.06] bg-[#0c0c0e]/80 space-y-2">
+        <div className="p-3 border-t border-white/[0.06] bg-[#0c0c0e]/80 space-y-2 shrink-0">
           {/* Support link */}
           <a
             href="mailto:support@dephyr.ai?subject=Dephyr%20Dashboard%20Support"
