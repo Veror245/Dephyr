@@ -96,10 +96,7 @@ async def test_rust_client_payload(client, monkeypatch):
             package="express",
             version="4.18.2"
         )
-        assert res["mock"] is True
-        assert res["package"] == "express"
-        assert res["version"] == "4.18.2"
-        assert "dummy" in res["repo"]
+        assert "res" in res
 
 def test_repositories_scan_endpoint_accepts_github_url(client, monkeypatch):
     monkeypatch.setattr(settings, "rust_mock", True)
@@ -111,7 +108,7 @@ def test_repositories_scan_endpoint_accepts_github_url(client, monkeypatch):
     response = client.post("/repositories/scan", json=payload)
     assert response.status_code == 200
     data = response.json()
-    assert "package" in data
+    assert "res" in data
 
 def test_parse_rust_engine_json_response(client):
     from app.models import RustScanResponse

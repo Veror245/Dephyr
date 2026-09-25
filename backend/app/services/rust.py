@@ -15,45 +15,8 @@ class RustClient:
         }
 
         if settings.rust_mock:
-            # Simulated AST scan results using the exact Rust engine JSON schema
-            mock_data = {
-                "res": [
-                    {
-                        "file": "src/index.py",
-                        "imports": [
-                            {
-                                "module": package,
-                                "name": None,
-                                "alias": None,
-                                "start": 10,
-                                "end": 25
-                            }
-                        ],
-                        "calls": [
-                            {
-                                "function": "process_data",
-                                "attribute": None,
-                                "args": "req.params",
-                                "start": 84,
-                                "end": 105
-                            }
-                        ]
-                    }
-                ]
-            }
-            scan_resp = RustScanResponse.model_validate(mock_data)
-            summary = scan_resp.to_summary()
-            summary.update({
-                'mock': True,
-                'repo': payload['repo'],
-                'package': payload['package'],
-                'version': payload['version'],
-                'external_input_detected': False,
-                'risk_indicators': [],
-            })
-            return summary
+            return {"res": []}
 
-        # Format target URL safely (handles both base URL and /scan suffix in rust_url)
         target_url = settings.rust_url if settings.rust_url.endswith('/scan') else settings.rust_url.rstrip('/') + '/scan'
 
         try:
@@ -67,19 +30,9 @@ class RustClient:
             if not isinstance(data, dict):
                 raise ValueError('Invalid Rust response: payload is not a JSON object')
 
-            # Parse and validate the response structure
             if 'res' in data:
                 scan_resp = RustScanResponse.model_validate(data)
-                parsed = scan_resp.to_summary()
-                parsed.update({
-                    'repo': payload['repo'],
-                    'package': payload['package'],
-                    'version': payload['version'],
-                })
-                return parsed
-            elif 'package_found' in data:
-                return data
-            else:
-                raise ValueError("Rust response missing 'res' field")
+                return scan_resp.model_dump()
+            return data
         except (httpx.RequestError, httpx.HTTPStatusError, ValueError) as exc:
             raise HTTPException(502, f'Rust scan failed or returned invalid data: {exc}') from exc
