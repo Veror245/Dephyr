@@ -3,13 +3,26 @@
 import React, { useState } from "react";
 import RepositoryTable from "./components/RepositoryTable";
 import RepositoryDetailDrawer from "./components/RepositoryDetailDrawer";
-import { MOCK_REPOSITORIES, RepositoryRecord } from "../lib/mock-data";
+import DashboardModal from "../components/DashboardModal";
+import { RepositoryRecord } from "../lib/mock-data";
 import { GitBranch } from "lucide-react";
 
 export default function RepositoriesPage() {
-  const [selectedRepo, setSelectedRepo] = useState<RepositoryRecord | null>(
-    MOCK_REPOSITORIES[0] // Preselect repo-c (demo scenario repo)
-  );
+  const [selectedRepo, setSelectedRepo] = useState<RepositoryRecord | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const handleSelectRepo = (repo: RepositoryRecord) => {
+    setSelectedRepo(repo);
+    setIsModalOpen(true);
+  };
+
+  const handleClose = () => {
+    setIsModalOpen(false);
+  };
+
+  const handleModalExited = () => {
+    setSelectedRepo(null);
+  };
 
   return (
     <div className="space-y-6 w-full">
@@ -41,24 +54,27 @@ export default function RepositoriesPage() {
         </div>
       </div>
 
-      {/* Main Split: Consistent gap-6 between table and detail drawer */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-        <div className={selectedRepo ? "xl:col-span-6" : "xl:col-span-12"}>
-          <RepositoryTable
-            onSelectRepo={(repo) => setSelectedRepo(repo)}
-            selectedRepoId={selectedRepo?.id}
-          />
-        </div>
-
-        {selectedRepo && (
-          <div className="xl:col-span-6 sticky top-28">
-            <RepositoryDetailDrawer
-              repo={selectedRepo}
-              onClose={() => setSelectedRepo(null)}
-            />
-          </div>
-        )}
+      {/* Main List Column - Expands to full width */}
+      <div className="w-full">
+        <RepositoryTable
+          onSelectRepo={handleSelectRepo}
+          selectedRepoId={selectedRepo?.id}
+        />
       </div>
+
+      {/* Centered Modal Overlay on top of full-width list */}
+      <DashboardModal
+        isOpen={isModalOpen}
+        onClose={handleModalExited}
+        ariaLabel={selectedRepo?.name || "Repository Details"}
+      >
+        {selectedRepo && (
+          <RepositoryDetailDrawer
+            repo={selectedRepo}
+            onClose={handleClose}
+          />
+        )}
+      </DashboardModal>
     </div>
   );
 }
