@@ -1,12 +1,15 @@
 import time
 from typing import Generator
+import uvicorn
+from fastapi import FastAPI, BackgroundTasks
+from pydantic import BaseModel
 
 from config import MOCK_MODE, BACKEND_BASE_URL
 from state import DephyrState, AgentEvent, ExposureReport
 from graph import dephyr_agent
 
 # ============================================================================
-# STREAMING ENGINE
+# STREAMING ENGINE (Remains exactly the same)
 # ============================================================================
 def stream_dephyr_agent(initial_state: DephyrState) -> Generator[AgentEvent, None, None]:
     start_event = AgentEvent(
@@ -40,27 +43,45 @@ def stream_dephyr_agent(initial_state: DephyrState) -> Generator[AgentEvent, Non
     yield AgentEvent(node="lifecycle", event_type="COMPLETE", message="Workflow concluded.", data={})
 
 # ============================================================================
-# CONSOLE HARNESS
+# MICROSERVICE LISTENER (Replaces the hardcoded console harness)
 # ============================================================================
-if __name__ == "__main__":
-    test_scenario: DephyrState = {
-        "repo_name": "dephyr-demo/repo-c", # Ensure this is in your allowed list
+app = FastAPI(title="Dephyr Agent")
+
+class AgentPayload(BaseModel):
+    repo_name: str
+    cve_id: str
+    package_name: str
+    vulnerable_symbol: str
+
+def run_react_loop(payload: AgentPayload):
+    state: DephyrState = {
+        "repo_name": payload.repo_name,
         "repo_path": "./workspace",
-        "cve_id": "CVE-2024-3012",
-        "package_name": "requests",
-        "vulnerable_symbol": "process_data",
+        "cve_id": payload.cve_id,
+        "package_name": payload.package_name,
+        "vulnerable_symbol": payload.vulnerable_symbol,
         "scan_results": None,
         "exposure_report": None,
         "messages": [],
         "pr_id": None,
         "ci_passed": False
     }
-
-    print("=" * 70)
-    print("      DEPHYR AUTONOMOUS SECURITY AGENT - DYNAMIC REACT LOOP")
-    print(f"      MOCK_MODE={MOCK_MODE}   BACKEND={BACKEND_BASE_URL}")
-    print("=" * 70)
-
-    for event in stream_dephyr_agent(test_scenario):
+    
+    print(f"\n>>> AGENT DEPLOYED: Commencing remediation for {payload.cve_id} on {payload.repo_name}")
+    for event in stream_dephyr_agent(state):
         print(f"[{event.timestamp}] [{event.event_type:<14}] {event.message}")
         time.sleep(0.1)
+
+@app.post("/trigger")
+async def trigger_agent(payload: AgentPayload, bg_tasks: BackgroundTasks):
+    # Runs the LLM loop in the background so the HTTP request doesn't hang
+    bg_tasks.add_task(run_react_loop, payload)
+    return {"status": "Agent dispatched successfully", "target": payload.cve_id}
+
+if __name__ == "__main__":
+    print("=" * 70)
+    print("      DEPHYR AUTONOMOUS SECURITY AGENT - LISTENING ON PORT 8001")
+    print(f"      MOCK_MODE={MOCK_MODE}   BACKEND={BACKEND_BASE_URL}")
+    print("=" * 70)
+    # Agent runs on 8001 so it doesn't collide with Person 2's backend on 8000
+    uvicorn.run(app, host="0.0.0.0", port=8001, log_level="warning")
