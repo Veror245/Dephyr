@@ -23,13 +23,13 @@ pub fn parse_python(path: &str) -> Option<Tree> {
     let imports =
         analysis::find_imports(tree.as_ref().unwrap(), &scode, &Queries::default().imports);
 
-    for imp in imports {
-        println!("{:?}", imp);
-    }
-    //
-    for call in calls {
-        println!("{:?}", call);
-    }
+    // for imp in imports {
+    //     println!("{:?}", imp);
+    // }
+    // //
+    // for call in calls {
+    //     println!("{:?}", call);
+    // }
 
     // if let Some(ast) = tree.as_ref() {
     //     let root = ast.root_node();

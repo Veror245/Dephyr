@@ -13,9 +13,9 @@ export default function OverviewPage() {
   const criticalRepos = MOCK_REPOSITORIES.filter((r) => r.risk !== "SAFE");
 
   return (
-    <div className="space-y-8 w-full">
+    <div className="space-y-6 w-full">
       {/* Top Interactive Hero Section: Generous two-column split across full width */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
         {/* Primary Action: Repository Scanner (7 cols) */}
         <div className="xl:col-span-7">
           <RepoScanInput />
@@ -36,13 +36,13 @@ export default function OverviewPage() {
       </div>
 
       {/* Lower Section: 2 Columns - Recent Agent Activity (7 cols) + Priority Repositories Watchlist (5 cols) */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
         <div className="xl:col-span-7">
           <RecentActivityFeed />
         </div>
 
-        {/* Priority Repositories Panel (borrowed from reference's Watchlist anatomy) */}
-        <div className="xl:col-span-5 rounded-panel bg-[#111113] border border-white/[0.08] p-7 lg:p-8 shadow-card flex flex-col justify-between space-y-6">
+        {/* Priority Repositories Panel */}
+        <div className="xl:col-span-5 rounded-panel bg-[#111113] border border-white/[0.08] p-6 lg:p-7 shadow-card flex flex-col justify-between space-y-6">
           <div className="space-y-4">
             <div className="flex items-center justify-between pb-4 border-b border-white/[0.06]">
               <div className="flex items-center gap-2.5">
