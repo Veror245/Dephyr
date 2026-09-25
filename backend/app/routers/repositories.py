@@ -88,22 +88,18 @@ async def metadata(body: RepoRef, request: Request):
         'html_url': data.get('html_url', f'https://github.com/{clean_repo}')
     }
 
-@router.post('/scan', status_code=202)
+@router.post('/scan', status_code=200)
 async def scan(body: ScanRequest, request: Request):
     clean_repo = require_repo(body.repo)
     http = request.app.state.http
 
-    async def worker(job_id):
-        result = await RustClient(http).scan(
-            repo_path=clean_repo,
-            package=body.package,
-            version=body.version
-        )
-        print(result)
-        await runtime.emit(job_id, 'SCAN_RESULT', 'Rust analysis completed', result)
-        return result
-
-    return await runtime.submit('scan', clean_repo, worker, git_job=True)
+    result = await RustClient(http).scan(
+        repo_path=clean_repo,
+        package=body.package,
+        version=body.version
+    )
+    print("Rust Engine Response:", result)
+    return result
 
 @router.post('/scan/callback', status_code=200)
 async def scan_callback(payload: RustScanResponse, job_id: str | None = None):

@@ -83,11 +83,12 @@ def test_repo_url_normalization_allowed(client):
     assert slug == "dephyr-demo/repo-c"
 
 @pytest.mark.asyncio
-async def test_rust_client_payload(client):
+async def test_rust_client_payload(client, monkeypatch):
     import httpx
     from pathlib import Path
     from app.services.rust import RustClient
 
+    monkeypatch.setattr(settings, "rust_mock", True)
     async with httpx.AsyncClient() as http_client:
         rust = RustClient(http_client)
         res = await rust.scan(
@@ -100,17 +101,17 @@ async def test_rust_client_payload(client):
         assert res["version"] == "4.18.2"
         assert "dummy" in res["repo"]
 
-def test_repositories_scan_endpoint_accepts_github_url(client):
+def test_repositories_scan_endpoint_accepts_github_url(client, monkeypatch):
+    monkeypatch.setattr(settings, "rust_mock", True)
     payload = {
         "repo": "https://github.com/dephyr-demo/repo-c",
         "package": "axios",
         "version": "1.6.0"
     }
     response = client.post("/repositories/scan", json=payload)
-    assert response.status_code == 202
+    assert response.status_code == 200
     data = response.json()
-    assert "job_id" in data
-    assert data["status"] == "queued"
+    assert "package" in data
 
 def test_parse_rust_engine_json_response(client):
     from app.models import RustScanResponse

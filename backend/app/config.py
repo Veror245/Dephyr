@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     github_api: str = 'https://api.github.com'
     nvd_api_key: str = ''
     rust_url: str = 'http://127.0.0.1:3000/scan'
-    rust_mock: bool = True
+    rust_mock: bool = False
     workspace: Path = Path('./workspace')
     db_path: Path = Path('./dephyr.sqlite3')
     max_active_scans: int = Field(3, ge=1, le=32)
