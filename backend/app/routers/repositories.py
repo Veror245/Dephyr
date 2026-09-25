@@ -121,7 +121,7 @@ async def scan(body: ScanRequest, request: Request):
         finally:
             shutil.rmtree(root, ignore_errors=True)
 
-    return await runtime.submit('scan', clean_repo, body.cve_id, worker, git_job=True)
+    return await runtime.submit('scan', clean_repo, worker, git_job=True)
 
 @router.post('/scan/callback', status_code=200)
 async def scan_callback(payload: RustScanResponse, job_id: str | None = None):
