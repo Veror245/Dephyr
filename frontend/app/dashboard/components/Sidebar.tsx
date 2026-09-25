@@ -149,7 +149,7 @@ export default function Sidebar({
                 DEPHYR
               </span>
               <span className="text-[10px] text-[#ff7300] tracking-wider uppercase font-semibold font-mono">
-                AUTONOMOUS SEC
+                Autonomous SEC
               </span>
             </div>
           </Link>

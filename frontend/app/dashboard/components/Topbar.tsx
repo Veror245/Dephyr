@@ -63,7 +63,7 @@ export default function Topbar({ onOpenSidebar }: TopbarProps) {
   };
 
   return (
-    <header className="sticky top-6 z-30 w-full rounded-panel bg-[#111113]/90 backdrop-blur-md border border-white/[0.08] shadow-card px-6 sm:px-8 py-3.5 mb-6 flex items-center justify-between gap-4">
+    <header className="top-6 z-30 w-full rounded-panel bg-[#111113]/90 backdrop-blur-md border border-white/[0.08] shadow-card px-6 sm:px-8 py-3.5 mb-6 flex items-center justify-between gap-4">
       {/* Left side: Hamburger button on mobile + Page Title */}
       <div className="flex items-center gap-3 min-w-0">
         <button
