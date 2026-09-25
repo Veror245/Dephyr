@@ -5,6 +5,9 @@ import { Search, GitBranch, ArrowRight } from "lucide-react";
 import ScanProgressState from "./ScanProgressState";
 import ScanResultPanel from "./ScanResultPanel";
 
+import { api } from "@/app/lib/api";
+import { useDashboardData } from "../../context/DashboardDataContext";
+
 type ScanState = "idle" | "scanning" | "completed";
 
 const getMockDetails = (repo: string) => {
@@ -18,6 +21,7 @@ const getMockDetails = (repo: string) => {
 };
 
 export default function RepoScanInput() {
+  const { recordScan } = useDashboardData();
   const [repoInput, setRepoInput] = useState("");
   const [state, setState] = useState<ScanState>("idle");
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -55,27 +59,16 @@ export default function RepoScanInput() {
 
     try {
       const details = getMockDetails(repoUrl);
-      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
-      const response = await fetch(`${baseUrl}/repositories/scan`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-API-Key": process.env.NEXT_PUBLIC_API_KEY || "",
-        },
-        body: JSON.stringify({
-          repo: repoUrl,
-          ...details
-        })
+      const scanResult = await api.repositories.scan({
+        repo: repoUrl,
+        package: details.package,
       });
-
-      if (!response.ok) {
-        throw new Error(`Scan request failed: ${response.statusText}`);
-      }
+      await recordScan(repoUrl, scanResult, details.package);
     } catch (err) {
       setValidationError(err instanceof Error ? err.message : "Failed to start scan");
       setState("idle");
     }
-  }
+  };
 
   const handleQuickDemo = (demoRepo: string) => {
     setRepoInput(demoRepo);

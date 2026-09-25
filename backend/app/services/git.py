@@ -1,6 +1,7 @@
 import asyncio
 import os
 import re
+import subprocess
 import uuid
 import tempfile
 from contextlib import asynccontextmanager
@@ -18,7 +19,7 @@ def normalize_repo(repo: str) -> str:
     if not (
         re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:\.git)?", s)
         or re.fullmatch(
-            r"(?:https://github\.com/|git@github\.com:)[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:\.git)?/?",
+            r"(?:https?://(?:www\.)?github\.com/|git@github\.com:)[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:\.git)?/?",
             s,
         )
     ):
@@ -122,33 +123,35 @@ esac
             flush=True,
         )
 
-        proc = await asyncio.create_subprocess_exec(
-            "git",
-            *args,
-            cwd=str(cwd) if cwd else None,
-            env=env,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-
-        try:
-            stdout, stderr = await asyncio.wait_for(
-                proc.communicate(),
+        # NOTE: asyncio.create_subprocess_exec requires a ProactorEventLoop
+        # on Windows; uvicorn's default SelectorEventLoop does not support
+        # async subprocesses there and raises NotImplementedError. Running
+        # git synchronously in a worker thread via asyncio.to_thread avoids
+        # that platform limitation while keeping this function non-blocking
+        # for the rest of the app.
+        def _run_git():
+            return subprocess.run(
+                ["git", *args],
+                cwd=str(cwd) if cwd else None,
+                env=env,
+                capture_output=True,
+                text=True,
                 timeout=timeout,
             )
-        except TimeoutError:
-            proc.kill()
-            await proc.communicate()
 
+        try:
+            res = await asyncio.to_thread(_run_git)
+        except subprocess.TimeoutExpired:
             raise HTTPException(
                 status_code=504,
                 detail="Git operation timed out",
             )
 
-        stdout_text = stdout.decode(errors="replace").strip()
-        stderr_text = stderr.decode(errors="replace").strip()
+        stdout_text = res.stdout.strip()
+        stderr_text = res.stderr.strip()
+        returncode = res.returncode
 
-        if proc.returncode != 0:
+        if returncode != 0:
             print(
                 f"[Git] command failed: git {args[0]}",
                 flush=True,

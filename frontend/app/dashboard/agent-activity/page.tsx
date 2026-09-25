@@ -1,8 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { Suspense } from "react";
 import AgentEventStream from "./components/AgentEventStream";
-import { Terminal } from "lucide-react";
+import { Terminal, Loader2 } from "lucide-react";
 
 export default function AgentActivityPage() {
   return (
@@ -31,8 +31,17 @@ export default function AgentActivityPage() {
         </div>
       </div>
 
-      {/* Main Terminal Card: Floating rounded panel */}
-      <AgentEventStream />
+      {/* Main Terminal Card: Floating rounded panel with streaming subscription */}
+      <Suspense
+        fallback={
+          <div className="p-12 rounded-panel bg-[#121214] border border-white/[0.12] text-center text-[#8e8e8e] flex items-center justify-center gap-2">
+            <Loader2 className="w-5 h-5 animate-spin text-[#ff7300]" />
+            <span>Connecting to streaming runtime...</span>
+          </div>
+        }
+      >
+        <AgentEventStream />
+      </Suspense>
     </div>
   );
 }

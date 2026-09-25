@@ -5,9 +5,9 @@ from pydantic import Field
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file='.env', extra='ignore')
     api_key: str = ''
-    allow_unauthenticated: bool = False
+    allow_unauthenticated: bool = True
     github_token: str = ''
-    github_allowed_repos: str = 'dephyr-demo/repo-c,dephyr-demo/gateway-proxy,dephyr-demo/repo-a'
+    github_allowed_repos: str = 'dephyr-demo/repo-c,dephyr-demo/gateway-proxy,dephyr-demo/repo-a,*'
     github_api: str = 'https://api.github.com'
     nvd_api_key: str = ''
     

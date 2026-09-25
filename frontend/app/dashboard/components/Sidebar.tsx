@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import SidebarNavItem from "./SidebarNavItem";
 import UserMenu from "./UserMenu";
+import { useDashboardData } from "../context/DashboardDataContext";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -26,60 +27,61 @@ interface SidebarProps {
   isHidden?: boolean;
 }
 
-const NAV_ITEMS = [
-  {
-    href: "/dashboard",
-    label: "Overview",
-    icon: LayoutDashboard,
-  },
-  {
-    href: "/dashboard/cve-feed",
-    label: "CVE Feed",
-    icon: ShieldAlert,
-    badge: 3,
-    badgeColor: "amber" as const,
-  },
-  {
-    href: "/dashboard/repositories",
-    label: "Repositories",
-    icon: GitBranch,
-    badge: 18,
-    badgeColor: "neutral" as const,
-  },
-  {
-    href: "/dashboard/agent-activity",
-    label: "Agent Activity",
-    icon: Terminal,
-    badge: "LIVE",
-    badgeColor: "green" as const,
-  },
-  {
-    href: "/dashboard/pull-requests",
-    label: "Pull Requests",
-    icon: GitPullRequest,
-    badge: 2,
-    badgeColor: "neutral" as const,
-  },
-  {
-    href: "/dashboard/remediation-timeline",
-    label: "Remediation Timeline",
-    icon: TrendingUp,
-  },
-  {
-    href: "/dashboard/settings",
-    label: "Settings",
-    icon: Settings,
-  },
-];
-
 export default function Sidebar({
   isOpen,
   onClose,
   isHidden = false,
 }: SidebarProps) {
+  const { stats } = useDashboardData();
   const pathname = usePathname();
   const navRef = useRef<HTMLDivElement | null>(null);
   const pillRef = useRef<HTMLDivElement | null>(null);
+
+  const navItems = [
+    {
+      href: "/dashboard",
+      label: "Overview",
+      icon: LayoutDashboard,
+    },
+    {
+      href: "/dashboard/cve-feed",
+      label: "CVE Feed",
+      icon: ShieldAlert,
+      badge: stats.cveCount,
+      badgeColor: "amber" as const,
+    },
+    {
+      href: "/dashboard/repositories",
+      label: "Repositories",
+      icon: GitBranch,
+      badge: stats.monitoredRepos,
+      badgeColor: "neutral" as const,
+    },
+    {
+      href: "/dashboard/agent-activity",
+      label: "Agent Activity",
+      icon: Terminal,
+      badge: "LIVE",
+      badgeColor: "green" as const,
+    },
+    {
+      href: "/dashboard/pull-requests",
+      label: "Pull Requests",
+      icon: GitPullRequest,
+      badge: stats.prCount,
+      badgeColor: "neutral" as const,
+    },
+    {
+      href: "/dashboard/remediation-timeline",
+      label: "Remediation Timeline",
+      icon: TrendingUp,
+    },
+    {
+      href: "/dashboard/settings",
+      label: "Settings",
+      icon: Settings,
+    },
+  ];
 
   useEffect(() => {
     if (!navRef.current || !pillRef.current) return;
@@ -183,7 +185,7 @@ export default function Sidebar({
             Operations
           </div>
 
-          {NAV_ITEMS.slice(0, 6).map((item) => (
+          {navItems.slice(0, 6).map((item) => (
             <SidebarNavItem
               key={item.href}
               href={item.href}

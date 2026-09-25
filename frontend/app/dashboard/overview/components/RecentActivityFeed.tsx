@@ -1,10 +1,11 @@
 import React from "react";
 import Link from "next/link";
 import { Terminal, ArrowRight } from "lucide-react";
-import { MOCK_AGENT_EVENTS } from "../../lib/mock-data";
+import { useDashboardData } from "../../context/DashboardDataContext";
 
 export default function RecentActivityFeed() {
-  const recentEvents = MOCK_AGENT_EVENTS.slice(0, 5);
+  const { agentEvents } = useDashboardData();
+  const recentEvents = agentEvents.slice(0, 5);
 
   const badgeStyles = {
     warn: "bg-[#ffb300]/15 text-[#ffb300] border-[#ffb300]/30",

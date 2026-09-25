@@ -3,6 +3,7 @@
 import React from "react";
 import PolicySettingsForm from "./components/PolicySettingsForm";
 import IntegrationsList from "./components/IntegrationsList";
+import BackendConnectionCard from "./components/BackendConnectionCard";
 import { Settings } from "lucide-react";
 
 export default function SettingsPage() {
@@ -31,6 +32,9 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+
+      {/* Backend API Connection & Diagnostics */}
+      <BackendConnectionCard />
 
       {/* Safety Policy Form: Floating rounded panel */}
       <PolicySettingsForm />

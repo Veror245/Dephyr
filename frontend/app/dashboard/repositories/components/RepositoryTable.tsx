@@ -3,21 +3,31 @@
 import React, { useState } from "react";
 import { RepositoryRecord, MOCK_REPOSITORIES } from "../../lib/mock-data";
 import RepositoryRiskBadge from "./RepositoryRiskBadge";
-import { Search, ChevronRight } from "lucide-react";
+import { Search, ChevronRight, RefreshCw, CheckCircle2 } from "lucide-react";
 
 interface RepositoryTableProps {
   onSelectRepo: (repo: RepositoryRecord) => void;
   selectedRepoId?: string;
+  repositories?: RepositoryRecord[];
+  loading?: boolean;
+  onRefresh?: () => void;
+  liveConnected?: boolean;
 }
 
 export default function RepositoryTable({
   onSelectRepo,
   selectedRepoId,
+  repositories,
+  loading = false,
+  onRefresh,
+  liveConnected = false,
 }: RepositoryTableProps) {
   const [filterRisk, setFilterRisk] = useState<string>("ALL");
   const [search, setSearch] = useState("");
 
-  const filtered = MOCK_REPOSITORIES.filter((r) => {
+  const dataList = repositories && repositories.length > 0 ? repositories : MOCK_REPOSITORIES;
+
+  const filtered = dataList.filter((r) => {
     const matchesRisk = filterRisk === "ALL" || r.risk === filterRisk;
     const matchesSearch =
       r.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -56,6 +66,27 @@ export default function RepositoryTable({
               {risk}
             </button>
           ))}
+        </div>
+
+        {/* Live sync indicator & Refresh button */}
+        <div className="flex items-center gap-2.5">
+          {liveConnected && (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-pill bg-[#52e185]/10 border border-[#52e185]/20 text-[11px] font-mono text-[#52e185]">
+              <CheckCircle2 className="w-3 h-3" />
+              <span>Metadata Synced</span>
+            </span>
+          )}
+
+          {onRefresh && (
+            <button
+              onClick={onRefresh}
+              disabled={loading}
+              title="Refresh repository metadata from backend POST /repositories/metadata"
+              className="p-1.5 rounded-control bg-white/5 hover:bg-white/10 text-[#8e8e8e] hover:text-white transition-colors cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin text-[#ff7300]" : ""}`} />
+            </button>
+          )}
         </div>
       </div>
 

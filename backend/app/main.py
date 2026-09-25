@@ -41,7 +41,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title='Dephyr Backend', version='1.0.0', lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[x.strip() for x in settings.allowed_origins.split(',') if x.strip()],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=['GET', 'POST', 'OPTIONS'],
     allow_headers=['X-API-Key', 'Content-Type', 'Authorization', 'Accept'],

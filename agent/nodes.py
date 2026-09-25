@@ -10,10 +10,12 @@ from tools import agent_tools
 # ============================================================================
 # LLM & STATIC NODES
 # ============================================================================
-groq_llm = ChatGroq(
-   model="gemma4:31b-cloud" ,
+from langchain_ollama import ChatOllama
+
+# Initialize the local Ollama model
+ollama_llm = ChatOllama(
+    model="gemma4:31b-cloud",
     temperature=0.0,
-    max_retries=2
 )
 
 analyst_prompt = ChatPromptTemplate.from_messages([
@@ -25,7 +27,7 @@ analyst_prompt = ChatPromptTemplate.from_messages([
     )),
     ("human", "Package: {package}\nSymbol: {symbol}\nAST Scan JSON:\n{findings}")
 ])
-analyst_chain = analyst_prompt | groq_llm.with_structured_output(ExposureReport)
+analyst_chain = analyst_prompt | ollama_llm.with_structured_output(ExposureReport)
 
 def investigator_node(state: DephyrState) -> dict:
     if MOCK_MODE:
@@ -67,7 +69,7 @@ dynamic_prompt = ChatPromptTemplate.from_messages([
     ("placeholder", "{messages}")
 ])
 
-dynamic_chain = dynamic_prompt | groq_llm.bind_tools(agent_tools)
+dynamic_chain = dynamic_prompt | ollama_llm.bind_tools(agent_tools)
 
 def dynamic_remediation_node(state: DephyrState) -> dict:
     response = dynamic_chain.invoke({

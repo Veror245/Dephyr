@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ExternalLink, RefreshCw, ArrowRight, ShieldAlert, GitPullRequest, Terminal } from "lucide-react";
 import { MOCK_CVES, VulnerabilityRecord } from "../../lib/mock-data";
 import VulnerabilityCard from "./VulnerabilityCard";
+import { useDashboardData } from "../../context/DashboardDataContext";
 
 interface ScanResultPanelProps {
   repoUrl: string;
@@ -13,34 +14,52 @@ export default function ScanResultPanel({
   repoUrl,
   onReset,
 }: ScanResultPanelProps) {
-  const resultVulnerabilities: VulnerabilityRecord[] = [
-    MOCK_CVES[0],
-    {
-      id: "cve-2026-2209",
-      cveId: "CVE-2026-2209",
-      package: "cookie-signature",
-      affectedVersions: "< 1.0.6",
-      fixedVersion: "1.0.6",
-      severity: "LOW",
-      cvss: 3.1,
-      exposureLevel: 0,
-      status: "TRIAGED",
-      detectedAt: "Just now",
-      summary: "Timing discrepancy in HMAC comparison",
-      description: "Level 0 evidence: module is transitive dependency in lockfile, but verifyCookie() symbol is never imported.",
-    },
-  ];
-
+  const { repositories } = useDashboardData();
   const cleanRepoName = repoUrl
     .replace(/^https?:\/\/github\.com\//, "")
     .replace(/\/$/, "");
+
+  const currentRepo = repositories.find(
+    (r) =>
+      `${r.org}/${r.name}`.toLowerCase() === cleanRepoName.toLowerCase() ||
+      r.name.toLowerCase() === cleanRepoName.toLowerCase() ||
+      r.id === cleanRepoName.toLowerCase()
+  );
+
+  const isSafe = currentRepo?.risk === "SAFE";
+
+  const resultVulnerabilities: VulnerabilityRecord[] = isSafe
+    ? []
+    : [
+        MOCK_CVES[0],
+        {
+          id: "cve-2026-2209",
+          cveId: "CVE-2026-2209",
+          package: "cookie-signature",
+          affectedVersions: "< 1.0.6",
+          fixedVersion: "1.0.6",
+          severity: "LOW",
+          cvss: 3.1,
+          exposureLevel: 0,
+          status: "TRIAGED",
+          detectedAt: "Just now",
+          summary: "Timing discrepancy in HMAC comparison",
+          description: "Level 0 evidence: module is transitive dependency in lockfile, but verifyCookie() symbol is never imported.",
+        },
+      ];
 
   return (
     <div className="w-full rounded-panel bg-[#121214] border border-white/[0.12] p-7 lg:p-8 shadow-2xl animate-in fade-in duration-300 space-y-6">
       {/* Header bar: Repo info + Risk Badge + Dismiss affordance */}
       <div className="flex flex-wrap items-center justify-between gap-4 pb-5 border-b border-white/[0.08]">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-card bg-[#ff5252]/10 border border-[#ff5252]/25 flex items-center justify-center text-[#ff5252] shrink-0">
+          <div
+            className={`w-12 h-12 rounded-card flex items-center justify-center shrink-0 ${
+              isSafe
+                ? "bg-[#52e185]/10 border border-[#52e185]/25 text-[#52e185]"
+                : "bg-[#ff5252]/10 border border-[#ff5252]/25 text-[#ff5252]"
+            }`}
+          >
             <ShieldAlert className="w-6 h-6" />
           </div>
 
@@ -64,17 +83,26 @@ export default function ScanResultPanel({
               </a>
             </div>
             <p className="text-xs text-[#8e8e8e] mt-0.5">
-              Scanned 42 dependencies · 1 critical tainted path reachable
+              {isSafe
+                ? "Scanned dependencies · 0 reachable tainted paths detected"
+                : "Scanned dependencies · 1 critical tainted path reachable"}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-4">
           {/* Risk Badge */}
-          <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-pill bg-[#ff5252]/15 border border-[#ff5252]/30 text-xs font-bold text-[#ff5252] uppercase tracking-wider">
-            <span className="w-2 h-2 rounded-full bg-[#ff5252] animate-pulse" />
-            CRITICAL RISK
-          </div>
+          {isSafe ? (
+            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-pill bg-[#52e185]/15 border border-[#52e185]/30 text-xs font-bold text-[#52e185] uppercase tracking-wider">
+              <span className="w-2 h-2 rounded-full bg-[#52e185]" />
+              VERIFIED SAFE
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-pill bg-[#ff5252]/15 border border-[#ff5252]/30 text-xs font-bold text-[#ff5252] uppercase tracking-wider">
+              <span className="w-2 h-2 rounded-full bg-[#ff5252] animate-pulse" />
+              CRITICAL RISK
+            </div>
+          )}
 
           {/* Dismiss / Scan another */}
           <button
@@ -88,14 +116,28 @@ export default function ScanResultPanel({
       </div>
 
       {/* Exposure Differentiator Notice */}
-      <div className="p-4 rounded-card bg-[#ff7300]/10 border border-[#ff7300]/25 flex items-start gap-3.5 text-xs">
-        <span className="w-2 h-2 rounded-full bg-[#ff7300] shrink-0 mt-1.5" />
+      <div
+        className={`p-4 rounded-card border flex items-start gap-3.5 text-xs ${
+          isSafe
+            ? "bg-[#52e185]/10 border-[#52e185]/25"
+            : "bg-[#ff7300]/10 border-[#ff7300]/25"
+        }`}
+      >
+        <span
+          className={`w-2 h-2 rounded-full shrink-0 mt-1.5 ${
+            isSafe ? "bg-[#52e185]" : "bg-[#ff7300]"
+          }`}
+        />
         <div className="space-y-1">
           <p className="font-semibold text-white text-sm">
-            Autonomous Taint Analysis Verified: Level 3 Exposure
+            {isSafe
+              ? "Autonomous Taint Analysis Verified: Level 0 Safe Posture"
+              : "Autonomous Taint Analysis Verified: Level 3 Exposure"}
           </p>
           <p className="text-[#c8c8c8] leading-relaxed">
-            Dephyr differentiated this from inactive dependencies: <code className="text-[#ff8c2e] font-mono">parseQuery()</code> receives raw user query parameters at <code className="text-white font-mono">src/api/query.js:84</code>. Immediate autonomous patch cycle initiated.
+            {isSafe
+              ? "Dephyr traversed the repository AST call graphs and verified that no vulnerable symbols receive external untrusted parameters. No patch action required."
+              : "Dephyr differentiated this from inactive dependencies: calls receive raw user query parameters. Immediate autonomous patch cycle initiated."}
           </p>
         </div>
       </div>

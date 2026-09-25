@@ -1,15 +1,48 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import RepositoryTable from "./components/RepositoryTable";
 import RepositoryDetailDrawer from "./components/RepositoryDetailDrawer";
 import DashboardModal from "../components/DashboardModal";
 import { RepositoryRecord } from "../lib/mock-data";
 import { GitBranch } from "lucide-react";
+import { api } from "@/app/lib/api";
+import { useDashboardData } from "../context/DashboardDataContext";
 
 export default function RepositoriesPage() {
+  const { repositories, stats, updateRepository } = useDashboardData();
   const [selectedRepo, setSelectedRepo] = useState<RepositoryRecord | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [liveConnected, setLiveConnected] = useState(false);
+
+  const fetchMetadata = useCallback(async () => {
+    setLoading(true);
+    let anySuccess = false;
+    await Promise.all(
+      repositories.map(async (r) => {
+        if (r.org === "dephyr-demo") return;
+        try {
+          const meta = await api.repositories.getMetadata({ repo: `${r.org}/${r.name}` });
+          if (meta) {
+            anySuccess = true;
+            updateRepository(r.id, {
+              defaultBranch: meta.default_branch || r.defaultBranch,
+              url: meta.html_url || r.url,
+            });
+          }
+        } catch {
+          // If GitHub token isn't configured on backend, keep existing fields
+        }
+      })
+    );
+    setLiveConnected(anySuccess);
+    setLoading(false);
+  }, [repositories, updateRepository]);
+
+  useEffect(() => {
+    fetchMetadata();
+  }, [fetchMetadata]);
 
   const handleSelectRepo = (repo: RepositoryRecord) => {
     setSelectedRepo(repo);
@@ -45,11 +78,11 @@ export default function RepositoriesPage() {
         <div className="flex items-center gap-4 text-xs font-mono shrink-0 pl-14 md:pl-0">
           <div className="px-3 py-1.5 rounded-pill bg-[#161619] border border-white/[0.06] flex items-center gap-2">
             <span className="text-[#8e8e8e]">Total Repos:</span>
-            <span className="text-white font-bold">18</span>
+            <span className="text-white font-bold">{stats.monitoredRepos}</span>
             <span className="text-[#8e8e8e]">·</span>
-            <span className="text-[#52e185] font-bold">15 Safe</span>
+            <span className="text-[#52e185] font-bold">{stats.safeCount} Safe</span>
             <span className="text-[#8e8e8e]">·</span>
-            <span className="text-[#ff5252] font-bold">2 Critical</span>
+            <span className="text-[#ff5252] font-bold">{stats.criticalCount} Critical</span>
           </div>
         </div>
       </div>
@@ -59,6 +92,10 @@ export default function RepositoriesPage() {
         <RepositoryTable
           onSelectRepo={handleSelectRepo}
           selectedRepoId={selectedRepo?.id}
+          repositories={repositories}
+          loading={loading}
+          onRefresh={fetchMetadata}
+          liveConnected={liveConnected}
         />
       </div>
 

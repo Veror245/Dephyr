@@ -1,16 +1,71 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
 import RepoScanInput from "./components/RepoScanInput";
 import HeroStatCard from "./components/HeroStatCard";
 import ExposureSummaryCard from "./components/ExposureSummaryCard";
 import RecentActivityFeed from "./components/RecentActivityFeed";
 import Link from "next/link";
-import { ShieldAlert, ArrowRight } from "lucide-react";
-import { MOCK_REPOSITORIES } from "../lib/mock-data";
+import { ShieldAlert, ArrowRight, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { RepositoryRecord } from "../lib/mock-data";
+import { api, HealthResponse } from "@/app/lib/api";
+import { useDashboardData } from "../context/DashboardDataContext";
 
 export default function OverviewPage() {
-  const criticalRepos = MOCK_REPOSITORIES.filter((r) => r.risk !== "SAFE");
+  const { repositories, stats, updateRepository } = useDashboardData();
+  const criticalRepos = repositories.filter((r) => r.risk !== "SAFE");
+  const [healthStatus, setHealthStatus] = useState<HealthResponse | null>(null);
+  const [healthLoading, setHealthLoading] = useState(true);
+  const [backendOnline, setBackendOnline] = useState(false);
+  const [metadataError, setMetadataError] = useState<string | null>(null);
+  const fetchedRef = useRef(false);
+
+  useEffect(() => {
+    // 1. Verify health status from GET /health
+    api.health
+      .check()
+      .then((data) => {
+        setHealthStatus(data);
+        setBackendOnline(true);
+      })
+      .catch((err) => {
+        console.warn("Backend /health check failed:", err);
+        setBackendOnline(false);
+      })
+      .finally(() => {
+        setHealthLoading(false);
+      });
+
+    // Guard against duplicate network calls during React StrictMode initial mount
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
+
+    // 2. Fetch metadata for real monitored repos (skip fictional mock demo repos)
+    const reposToFetch = repositories.filter((r) => r.org !== "dephyr-demo");
+    if (reposToFetch.length > 0) {
+      Promise.allSettled(
+        reposToFetch.map((r) => api.repositories.getMetadata({ repo: `${r.org}/${r.name}` }))
+      ).then((results) => {
+        const failed = results.find((r) => r.status === "rejected");
+        if (failed && failed.status === "rejected") {
+          const msg = failed.reason instanceof Error ? failed.reason.message : "GitHub metadata service unavailable";
+          setMetadataError(msg);
+        } else {
+          setMetadataError(null);
+        }
+
+        results.forEach((res, idx) => {
+          if (res.status === "fulfilled" && res.value) {
+            const target = reposToFetch[idx];
+            updateRepository(target.id, {
+              defaultBranch: res.value.default_branch || target.defaultBranch,
+              url: res.value.html_url || target.url,
+            });
+          }
+        });
+      });
+    }
+  }, []);
 
   return (
     <div className="space-y-6 w-full">
@@ -29,8 +84,28 @@ export default function OverviewPage() {
 
       {/* Row of 4 Core Dashboard Metric Cards */}
       <div className="space-y-3">
-        <div className="text-[11px] font-semibold text-[#8e8e8e] uppercase tracking-wider pl-1">
-          Operational Benchmarks
+        <div className="flex items-center justify-between pl-1">
+          <div className="text-[11px] font-semibold text-[#8e8e8e] uppercase tracking-wider">
+            Operational Benchmarks
+          </div>
+          <div className="flex items-center gap-2 text-xs font-mono">
+            {healthLoading ? (
+              <span className="text-[#8e8e8e] flex items-center gap-1.5 text-[11px]">
+                <Loader2 className="w-3 h-3 animate-spin text-[#ff7300]" />
+                Checking Backend...
+              </span>
+            ) : backendOnline ? (
+              <span className="text-[#52e185] bg-[#52e185]/10 border border-[#52e185]/20 px-2 py-0.5 rounded-pill flex items-center gap-1 text-[11px]">
+                <CheckCircle2 className="w-3 h-3" />
+                Backend Connected: {healthStatus?.service}
+              </span>
+            ) : (
+              <span className="text-[#ffb300] bg-[#ffb300]/10 border border-[#ffb300]/20 px-2 py-0.5 rounded-pill flex items-center gap-1 text-[11px]">
+                <AlertCircle className="w-3 h-3" />
+                Backend Offline (http://localhost:8000)
+              </span>
+            )}
+          </div>
         </div>
         <ExposureSummaryCard />
       </div>
@@ -51,12 +126,23 @@ export default function OverviewPage() {
                   Attention Required
                 </h2>
               </div>
-              <Link
-                href="/dashboard/repositories"
-                className="text-xs text-[#8e8e8e] hover:text-white transition-colors"
-              >
-                View all 18 repos →
-              </Link>
+              <div className="flex items-center gap-3">
+                {metadataError && (
+                  <span
+                    title={metadataError}
+                    className="text-[10px] font-mono text-[#ffb300] bg-[#ffb300]/10 border border-[#ffb300]/25 px-2 py-0.5 rounded-pill flex items-center gap-1 cursor-help"
+                  >
+                    <AlertCircle className="w-3 h-3" />
+                    GitHub Sync Offline
+                  </span>
+                )}
+                <Link
+                  href="/dashboard/repositories"
+                  className="text-xs text-[#8e8e8e] hover:text-white transition-colors"
+                >
+                  View all {stats.monitoredRepos} repos →
+                </Link>
+              </div>
             </div>
 
             <div className="divide-y divide-white/[0.04]">
@@ -97,7 +183,7 @@ export default function OverviewPage() {
             href="/dashboard/repositories"
             className="w-full flex items-center justify-center gap-2 py-3 rounded-card bg-[#161619] hover:bg-[#202024] border border-white/[0.06] text-xs font-semibold text-white transition-colors"
           >
-            <span>Manage All 18 Monitored Repos</span>
+            <span>Manage All {stats.monitoredRepos} Monitored Repos</span>
             <ArrowRight className="w-3.5 h-3.5 text-[#ff7300]" />
           </Link>
         </div>

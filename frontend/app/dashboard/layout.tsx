@@ -7,6 +7,7 @@ import Topbar from "./components/Topbar";
 import DashboardPageTransition from "./components/DashboardPageTransition";
 
 import { ModalProvider, useModal } from "./components/ModalContext";
+import { DashboardDataProvider } from "./context/DashboardDataContext";
 
 export default function DashboardLayout({
   children,
@@ -14,9 +15,11 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <ModalProvider>
-      <DashboardLayoutInner>{children}</DashboardLayoutInner>
-    </ModalProvider>
+    <DashboardDataProvider>
+      <ModalProvider>
+        <DashboardLayoutInner>{children}</DashboardLayoutInner>
+      </ModalProvider>
+    </DashboardDataProvider>
   );
 }
 

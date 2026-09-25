@@ -3,10 +3,11 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
-import { HERO_STATS } from "../../lib/mock-data";
+import { useDashboardData } from "../../context/DashboardDataContext";
 
 export default function HeroStatCard() {
   const [selectedRange, setSelectedRange] = useState("Today");
+  const { stats } = useDashboardData();
 
   return (
     <div className="relative overflow-hidden rounded-panel bg-[#111113] border border-white/[0.08] p-7 lg:p-8 shadow-card flex flex-col justify-between space-y-6">
@@ -53,7 +54,7 @@ export default function HeroStatCard() {
       <div className="relative z-10 flex flex-wrap items-baseline gap-4 my-2">
         <div className="flex items-baseline gap-3">
           <span className="font-display text-5xl sm:text-6xl text-white font-bold tracking-tight">
-            {HERO_STATS.activeExposures}
+            {stats.activeExposures}
           </span>
           <span className="text-xs font-bold px-2.5 py-1 rounded-control bg-[#ff5252]/15 text-[#ff5252] border border-[#ff5252]/30 uppercase tracking-wide">
             ACTION REQUIRED
@@ -61,7 +62,7 @@ export default function HeroStatCard() {
         </div>
 
         <div className="text-sm text-[#8e8e8e]">
-          across <span className="text-white font-semibold">18 monitored repositories</span>
+          across <span className="text-white font-semibold">{stats.monitoredRepos} monitored repositories</span>
         </div>
       </div>
 
@@ -70,19 +71,19 @@ export default function HeroStatCard() {
         <div className="flex flex-wrap items-center gap-5 text-xs">
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-[#ff5252]" />
-            <span className="text-white font-semibold">2 Critical</span>
+            <span className="text-white font-semibold">{stats.criticalCount} Critical</span>
             <span className="text-[#8e8e8e]">(Level 3)</span>
           </div>
 
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-[#ffb300]" />
-            <span className="text-white font-semibold">1 Medium</span>
+            <span className="text-white font-semibold">{stats.mediumCount} Medium</span>
             <span className="text-[#8e8e8e]">(Level 1)</span>
           </div>
 
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-[#52e185]" />
-            <span className="text-white font-semibold">15 Safe</span>
+            <span className="text-white font-semibold">{stats.safeCount} Safe</span>
           </div>
         </div>
 
