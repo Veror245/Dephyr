@@ -16,7 +16,7 @@ export default function RepositoryDetailDrawer({
   if (!repo) return null;
 
   return (
-    <div className="rounded-panel bg-[#111113] border border-white/[0.12] p-7 lg:p-8 shadow-2xl space-y-6 animate-in fade-in duration-200">
+    <div className="rounded-panel bg-[#111113] border-solid border-[0.06px] border-white/[0.05] p-7 lg:p-8 shadow-2xl space-y-6 animate-in fade-in duration-200">
       {/* Header */}
       <div className="flex items-start justify-between gap-4 pb-5 border-b border-white/[0.08]">
         <div className="space-y-1.5">
