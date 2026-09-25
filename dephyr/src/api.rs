@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 use crate::scanner::{ScanRes, scan};
+use tower_http::cors::{Any, CorsLayer};
 
 #[derive(Deserialize)]
 pub struct ScanReq {
@@ -17,7 +18,12 @@ pub struct Resp {
 }
 
 pub fn router() -> Router {
-    Router::new().route("/scan", post(scan_handler))
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any);
+
+    Router::new().route("/scan", post(scan_handler)).layer(cors)
 }
 
 async fn scan_handler(Json(req): Json<ScanReq>) -> Json<Resp> {
