@@ -16,7 +16,7 @@ from app.config import settings
 from app.db import store
 from app.runtime import runtime
 from app.security import require_key
-from app.routers import cves, repositories, remediation, pull_requests, jobs
+from app.routers import cves, repositories, remediation, pull_requests, jobs, agent 
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(name)s %(message)s')
 
@@ -51,5 +51,5 @@ app.add_middleware(
 async def health():
     return {'status': 'ok', 'service': 'dephyr-backend'}
 
-for router in (cves.router, repositories.router, remediation.router, pull_requests.router, jobs.router):
+for router in (cves.router, repositories.router, remediation.router, pull_requests.router, jobs.router, agent.router):
     app.include_router(router, dependencies=[Depends(require_key)])
