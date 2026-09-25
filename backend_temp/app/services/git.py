@@ -33,7 +33,7 @@ async def temporary_clone(repo: str):
     removed on success, error, or request cancellation.
     """
     repo_slug = normalize_repo(repo)
-    with tempfile.TemporaryDirectory(prefix='dephyr-scan-') as temp_dir:
+    with tempfile.TemporaryDirectory(prefix="dephyr-scan") as temp_dir:
         root = Path(temp_dir) / 'repo'
         await git('clone', '--depth', '1', '--',
                   f'https://github.com/{repo_slug}.git', str(root), timeout=150)
