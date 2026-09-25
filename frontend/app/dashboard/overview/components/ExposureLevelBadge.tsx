@@ -43,9 +43,8 @@ export default function ExposureLevelBadge({
         className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-control text-[11px] font-semibold tracking-wide border uppercase ${style.bg} ${style.text} ${style.border}`}
       >
         <span
-          className={`w-1.5 h-1.5 rounded-full ${
-            level === 3 ? "bg-[#ff5252] animate-pulse" : style.text.replace("text-", "bg-")
-          }`}
+          className={`w-1.5 h-1.5 rounded-full ${level === 3 ? "bg-[#ff5252] animate-pulse" : style.text.replace("text-", "bg-")
+            }`}
         />
         LEVEL {level}: {level === 0 ? "Dep Present" : level === 1 ? "Symbol Imported" : level === 2 ? "Call Executed" : "External Input Flow"}
       </span>

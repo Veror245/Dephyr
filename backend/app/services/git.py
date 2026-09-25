@@ -9,6 +9,16 @@ from app.models import Patch
 
 BRANCH_RE = re.compile(r'^[A-Za-z0-9_./-]+$')
 
+def normalize_repo(repo: str) -> str:
+    s = repo.strip()
+    m = re.search(r'(?:github\.com[:/])([a-zA-Z0-9_.-]+)/([a-zA-Z0-9_.-]+?)(?:\.git)?/?$', s)
+    if m:
+        return f"{m.group(1)}/{m.group(2)}"
+    parts = [p for p in s.strip('/').split('/') if p]
+    if len(parts) == 2:
+        return f"{parts[0]}/{parts[1].removesuffix('.git')}"
+    return s
+
 async def git(*args, cwd: Path | None = None, timeout=90):
     env = os.environ.copy()
     env['GIT_TERMINAL_PROMPT'] = '0'
@@ -36,12 +46,20 @@ async def git(*args, cwd: Path | None = None, timeout=90):
     return stdout.decode(errors='replace').strip()
 
 async def clone(repo: str, base_branch: str = 'main') -> Path:
+    repo_slug = normalize_repo(repo)
     if not BRANCH_RE.fullmatch(base_branch) or base_branch.startswith('-') or '..' in base_branch:
         raise HTTPException(422, 'Invalid base branch')
     settings.workspace.mkdir(parents=True, exist_ok=True)
     target = settings.workspace.resolve() / uuid.uuid4().hex
-    await git('clone', '--depth', '1', '--branch', base_branch,
-              '--', f'https://github.com/{repo}.git', str(target), timeout=150)
+    try:
+        await git('clone', '--depth', '1', '--branch', base_branch,
+                  '--', f'https://github.com/{repo_slug}.git', str(target), timeout=150)
+    except HTTPException:
+        if base_branch == 'main':
+            await git('clone', '--depth', '1', '--branch', 'master',
+                      '--', f'https://github.com/{repo_slug}.git', str(target), timeout=150)
+        else:
+            raise
     return target
 
 def apply_patches(root: Path, patches: list[Patch]):
