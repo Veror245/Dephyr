@@ -21,7 +21,6 @@ class ScanRequest(BaseModel):
     repo: str
     package: str
     version: str | None = None
-    vulnerable_function: str | None = None
     cve_id: str | None = None
 
 class RemediationRequest(BaseModel):

@@ -114,8 +114,7 @@ async def scan(body: ScanRequest, request: Request):
             result = await RustClient(http).scan(
                 repo_path=root,
                 package=body.package,
-                version=version,
-                vulnerable_function=body.vulnerable_function
+                version=version
             )
             await runtime.emit(job_id, 'SCAN_RESULT', 'Rust analysis completed', result)
             return result
