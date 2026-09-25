@@ -23,6 +23,7 @@ import UserMenu from "./UserMenu";
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
+  isHidden?: boolean;
 }
 
 const NAV_ITEMS = [
@@ -71,7 +72,11 @@ const NAV_ITEMS = [
   },
 ];
 
-export default function Sidebar({ isOpen, onClose }: SidebarProps) {
+export default function Sidebar({
+  isOpen,
+  onClose,
+  isHidden = false,
+}: SidebarProps) {
   const pathname = usePathname();
   const navRef = useRef<HTMLDivElement | null>(null);
   const pillRef = useRef<HTMLDivElement | null>(null);
@@ -117,7 +122,11 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
       {/* Main Sidebar Panel - Inset floating rounded panel on desktop */}
       <aside
-        className={`fixed z-50 w-64 bg-[#0a0a0c] flex flex-col transition-transform duration-300 ease-in-out overflow-hidden lg:top-6 lg:bottom-6 lg:left-6 lg:rounded-panel lg:border lg:border-white/[0.08] lg:shadow-card lg:translate-x-0 ${
+        className={`fixed z-50 w-64 bg-[#0a0a0c] flex flex-col transition-all duration-300 ease-in-out overflow-hidden lg:top-6 lg:bottom-6 lg:left-6 lg:rounded-panel lg:border lg:border-white/[0.08] lg:shadow-card ${
+          isHidden
+            ? "lg:-translate-x-[120%] lg:opacity-0 pointer-events-none"
+            : "lg:translate-x-0 lg:opacity-100 pointer-events-auto"
+        } ${
           isOpen
             ? "top-0 bottom-0 left-0 border-r border-white/[0.08] translate-x-0"
             : "top-0 bottom-0 left-0 border-r border-white/[0.08] -translate-x-full"

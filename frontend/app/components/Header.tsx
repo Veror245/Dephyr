@@ -181,7 +181,7 @@ export default function Header({ activeSection, onNavClick }: HeaderProps) {
             >
               Case Studies
             </a>
-            <a
+             <a
               href="#contact"
               className={`${styles.mobileNavLink} ${
                 activeSection === "contact" ? styles.mobileActiveLink : ""
@@ -190,6 +190,8 @@ export default function Header({ activeSection, onNavClick }: HeaderProps) {
             >
               Contact
             </a>
+
+            
             <Link
               href="/dashboard"
               className={styles.mobileSignIn}
