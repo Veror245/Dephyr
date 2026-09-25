@@ -1,0 +1,110 @@
+/* Geist Pixel Circle (fallback display only) */
+@font-face {
+  font-family: "Geist Pixel Circle";
+  src: url("/fonts/GeistPixel-Circle.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* SF Pro Text (primary body & UI font) */
+@font-face {
+  font-family: "SF Pro Text";
+  src: url("/fonts/SFProFonts/SF-Pro-Text-Regular.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "SF Pro Text";
+  src: url("/fonts/SFProFonts/SF-Pro-Text-Medium.otf") format("opentype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "SF Pro Text";
+  src: url("/fonts/SFProFonts/SF-Pro-Text-Semibold.otf") format("opentype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "SF Pro Text";
+  src: url("/fonts/SFProFonts/SF-Pro-Text-Bold.otf") format("opentype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --bg: #000000;
+  --text: #ffffff;
+  --muted: #8e8e8e;
+  --nav-text: #2e2e2e;
+  --pill-dark: #28282a;
+  --sign-in-text: #c8c8c8;
+  --nav-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
+  --trust-bg: #28282a;
+  --trust-border: rgba(255, 255, 255, 0.4);
+  --trust-text: #c4c2c3;
+  --font-sans: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+  --font-display: "BubbledotICG-FinePos", "Geist Pixel Circle", monospace;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  width: 100%;
+  min-height: 100vh;
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/old Edge */
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none; /* Chrome, Edge, Safari */
+}
+
+/* Prevent scrolling when mobile menu is open */
+body.menuOpen {
+  overflow: hidden;
+  touch-action: none;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font-family: inherit;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
