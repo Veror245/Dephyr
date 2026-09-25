@@ -1,17 +1,17 @@
-use dephyr::{analysis, deps, parser, scanner, walker};
-use std::path::Path;
+// use dephyr::{analysis, deps, parser};
+// use std::path::Path;
 
 #[tokio::main]
 async fn main() {
-    let path = "test.py";
+    // let path = "test.py";
 
-    let mut tree = parser::parse_python(path).unwrap();
-    let queries = analysis::Queries::default();
+    // let mut tree = parser::parse_python(path).unwrap();
+    // let queries = analysis::Queries::default();
 
-    let path = Path::new("/mnt/shared/projects/Autonomous-Incident-Response-System/");
-    let dep = deps::dependency_info(path, "dotenv");
-
-    println!("{:?}", dep);
+    // let path = Path::new("/mnt/shared/projects/Autonomous-Incident-Response-System/");
+    // let dep = deps::dependency_info(path, "dotenv");
+    //
+    // println!("{:?}", dep);
 
     // let files = walker::walk_dir(path);
     // println!("{:?}", files);
