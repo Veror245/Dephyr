@@ -17,8 +17,13 @@ groq_llm = ChatGroq(
 )
 
 analyst_prompt = ChatPromptTemplate.from_messages([
-    ("system", "You are Dephyr's Security Analyst. Evaluate the Rust AST scan. Output an ExposureReport."),
-    ("human", "Package: {package}\nSymbol: {symbol}\nScan Findings:\n{findings}")
+    ("system", (
+        "You are Dephyr's Security Analyst. Evaluate the following Rust AST JSON scan. "
+        "The JSON contains a 'res' array. If the array has items, the symbol IS reachable. "
+        "Look at the 'args' field in the 'calls' array to guess if the input might be user-controlled. "
+        "Classify the exposure and output an ExposureReport."
+    )),
+    ("human", "Package: {package}\nSymbol: {symbol}\nAST Scan JSON:\n{findings}")
 ])
 analyst_chain = analyst_prompt | groq_llm.with_structured_output(ExposureReport)
 
