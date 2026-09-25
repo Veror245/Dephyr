@@ -13,28 +13,28 @@ pub fn dependency_info(repo: &Path, package: &str) -> DependencyInfo {
 
     // requirements*.txt at repo root
     for req in find_requirements_files(repo) {
-        if let Ok(text) = std::fs::read_to_string(&req) {
-            if let Some(version) = requirements_lookup(&text, &target) {
-                return DependencyInfo {
-                    declared: true,
-                    version,
-                    source: Some(req.file_name().unwrap().to_string_lossy().into_owned()),
-                };
-            }
+        if let Ok(text) = std::fs::read_to_string(&req)
+            && let Some(version) = requirements_lookup(&text, &target)
+        {
+            return DependencyInfo {
+                declared: true,
+                version,
+                source: Some(req.file_name().unwrap().to_string_lossy().into_owned()),
+            };
         }
     }
 
     // pyproject.toml
     let pyproject = repo.join("pyproject.toml");
     if pyproject.is_file() {
-        if let Ok(text) = std::fs::read_to_string(&pyproject) {
-            if let Some(version) = pyproject_lookup(&text, &target) {
-                return DependencyInfo {
-                    declared: true,
-                    version,
-                    source: Some("pyproject.toml".into()),
-                };
-            }
+        if let Ok(text) = std::fs::read_to_string(&pyproject)
+            && let Some(version) = pyproject_lookup(&text, &target)
+        {
+            return DependencyInfo {
+                declared: true,
+                version,
+                source: Some("pyproject.toml".into()),
+            };
         }
     }
 

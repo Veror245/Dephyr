@@ -1,4 +1,4 @@
-use dephyr::{analysis, parser, scanner, walker};
+use dephyr::{analysis, deps, parser, scanner, walker};
 use std::path::Path;
 
 #[tokio::main]
@@ -9,6 +9,9 @@ async fn main() {
     let queries = analysis::Queries::default();
 
     let path = Path::new("/mnt/shared/projects/Autonomous-Incident-Response-System/");
+    let dep = deps::dependency_info(path, "dotenv");
+
+    println!("{:?}", dep);
 
     // let files = walker::walk_dir(path);
     // println!("{:?}", files);
