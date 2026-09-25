@@ -16,7 +16,9 @@ class RustClient:
         if settings.rust_mock:
             return {"res": []}
 
-        target_url = settings.rust_url if settings.rust_url.endswith('/scan') else settings.rust_url.rstrip('/') + '/scan'
+        target_url = settings.rust_url.rstrip('/')
+        if not target_url.endswith('/scan'):
+            target_url += '/scan'
 
         try:
             response = await self.client.post(
@@ -34,6 +36,10 @@ class RustClient:
         except httpx.HTTPStatusError as exc:
             print(f"[RustClient] HTTP status error from {target_url}:", exc.response.status_code, exc.response.text)
             raise HTTPException(502, f'Rust engine returned HTTP {exc.response.status_code}') from exc
+        except httpx.TimeoutException as exc:
+            raise HTTPException(504, 'Rust engine timed out') from exc
+        except ValueError as exc:
+            raise HTTPException(502, 'Rust engine returned invalid JSON') from exc
         except Exception as exc:
             print(f"[RustClient] Unexpected error calling {target_url}:", exc)
             raise HTTPException(502, f'Rust scan error: {exc}') from exc

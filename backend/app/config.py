@@ -5,12 +5,12 @@ from pydantic import Field
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file='.env', extra='ignore')
     api_key: str = ''
-    allow_unauthenticated: bool = True
+    allow_unauthenticated: bool = False
     github_token: str = ''
-    github_allowed_repos: str = 'dephyr-demo/repo-c,dephyr-demo/gateway-proxy,dephyr-demo/repo-a,*'
+    github_allowed_repos: str = 'dephyr-demo/repo-c,dephyr-demo/gateway-proxy,dephyr-demo/repo-a'
     github_api: str = 'https://api.github.com'
     nvd_api_key: str = ''
-    rust_url: str = 'http://127.0.0.1:3000/scan'
+    rust_url: str = 'http://127.0.0.1:4000/scan'
     rust_mock: bool = False
     workspace: Path = Path('./workspace')
     db_path: Path = Path('./dephyr.sqlite3')

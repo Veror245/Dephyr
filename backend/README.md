@@ -90,3 +90,31 @@ docker run -d -p 8000:8000 --env-file .env --name dephyr-backend dephyr-backend
 ```bash
 uv run pytest
 ```
+
+## Updated temporary-clone scan flow
+
+Run `uv sync` then `uv run python -m uvicorn app.main:app --reload` from this directory.
+Set `RUST_URL=http://127.0.0.1:4000/scan`, `RUST_MOCK=false`, and set
+`GITHUB_ALLOWED_REPOS` to your authorized GitHub owner/repo values in `.env`.
+Set `API_KEY` to a strong secret and send it as `X-API-Key` on protected routes.
+
+`POST /repositories/scan` takes exactly:
+
+```json
+{"repo":"https://github.com/your-owner/your-repo","package":"axios","version":"1.6.0"}
+```
+
+It shallow-clones the default branch into an OS temporary directory, POSTs
+`{"repo":"<absolute cloned directory>","package":"axios","version":"1.6.0"}`
+to the Rust endpoint, prints Rust's JSON response, returns the JSON unchanged,
+and removes the temporary directory even if Rust returns an error.
+
+**Rust must run on the same machine / shared filesystem and be able to access
+that temporary path.** If Rust runs in a separate container or remote machine,
+a local path alone will not work; use a shared volume or send a repository URL
+instead (which requires a matching Rust contract). No Docker is used by this
+Python scan flow.
+
+Test the scan integration with `uv run pytest tests/test_scan_flow.py -q`.
+The original tests may assume mock scans never clone; adapt them to mock the
+clone when running the full suite.

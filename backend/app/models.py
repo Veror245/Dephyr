@@ -18,9 +18,9 @@ class RepoRef(BaseModel):
     repo: str
 
 class ScanRequest(BaseModel):
-    repo: str
-    package: str
-    version: str | None = None
+    repo: str = Field(min_length=1)
+    package: str = Field(min_length=1)
+    version: str = Field(min_length=1)
     
 class RemediationRequest(BaseModel):
     repo: str

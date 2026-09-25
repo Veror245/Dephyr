@@ -99,14 +99,16 @@ async def test_rust_client_payload(client, monkeypatch):
         assert "res" in res
 
 def test_repositories_scan_endpoint_accepts_github_url(client, monkeypatch, tmp_path):
+    from contextlib import asynccontextmanager
+    from app.routers import repositories
     monkeypatch.setattr(settings, "rust_mock", True)
 
-    async def mock_clone(repo, base_branch="main"):
-        dummy_dir = tmp_path / "dummy_repo"
-        dummy_dir.mkdir(parents=True, exist_ok=True)
-        return dummy_dir
+    @asynccontextmanager
+    async def fake_clone(repo):
+        assert repo == "dephyr-demo/repo-c"
+        yield tmp_path
 
-    monkeypatch.setattr("app.routers.repositories.clone", mock_clone)
+    monkeypatch.setattr(repositories, "temporary_clone", fake_clone)
     payload = {
         "repo": "https://github.com/dephyr-demo/repo-c",
         "package": "axios",
@@ -114,8 +116,7 @@ def test_repositories_scan_endpoint_accepts_github_url(client, monkeypatch, tmp_
     }
     response = client.post("/repositories/scan", json=payload)
     assert response.status_code == 200
-    data = response.json()
-    assert "res" in data
+    assert "res" in response.json()
 
 def test_parse_rust_engine_json_response(client):
     from app.models import RustScanResponse

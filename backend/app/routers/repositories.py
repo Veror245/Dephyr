@@ -6,7 +6,7 @@ from fastapi import APIRouter, Request
 from app.models import RepoRef, ScanRequest, RustScanResponse
 from app.security import require_repo
 from app.services.github import GitHub
-from app.services.git import clone, normalize_repo
+from app.services.git import temporary_clone
 from app.services.rust import RustClient
 from app.runtime import runtime
 
@@ -90,34 +90,20 @@ async def metadata(body: RepoRef, request: Request):
 
 @router.post('/scan', status_code=200)
 async def scan(body: ScanRequest, request: Request):
+    """Clone a GitHub repository temporarily and forward its local path to Rust.
+
+    Rust must run on the same host or have the temporary directory mounted
+    at the identical path. This endpoint returns Rust's JSON without altering it.
+    """
     clean_repo = require_repo(body.repo)
-    http = request.app.state.http
-
-    default_branch = 'main'
-    try:
-        repo_info = await GitHub(http).repo(clean_repo)
-        default_branch = repo_info.get('default_branch', 'main')
-    except Exception:
-        default_branch = 'main'
-
-    root = await clone(clean_repo, default_branch)
-    try:
-        try:
-            rel_path = root.relative_to(Path.cwd()).as_posix()
-        except ValueError:
-            rel_path = str(root)
-
-        version = body.version or detect_package_version(root, body.package) or 'latest'
-
-        result = await RustClient(http).scan(
-            repo_path=rel_path,
+    async with temporary_clone(clean_repo) as root:
+        result = await RustClient(request.app.state.http).scan(
+            repo_path=root,
             package=body.package,
-            version=version
+            version=body.version,
         )
-        print("Rust Engine Response:", result)
+        print('Rust Engine Response:', result, flush=True)
         return result
-    finally:
-        shutil.rmtree(root, ignore_errors=True)
 
 @router.post('/scan/callback', status_code=200)
 async def scan_callback(payload: RustScanResponse, job_id: str | None = None):
