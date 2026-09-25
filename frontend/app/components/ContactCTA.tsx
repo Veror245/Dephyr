@@ -52,8 +52,8 @@ export default function ContactCTA() {
           Get in touch to see Dephyr on your repositories.
         </p>
         <div className="contact-anim">
-          <Link href="/contact" className={styles.ctaButton}>
-            Get in Touch
+          <Link href="/dashboard" className={styles.ctaButton}>
+            Try Now
           </Link>
         </div>
       </div>
