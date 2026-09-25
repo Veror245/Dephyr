@@ -11,7 +11,7 @@ from tools import agent_tools
 # LLM & STATIC NODES
 # ============================================================================
 groq_llm = ChatGroq(
-   model="openai/gpt-oss-120b",
+   model="gemma4:31b-cloud" ,
     temperature=0.0,
     max_retries=2
 )
@@ -54,14 +54,16 @@ dynamic_prompt = ChatPromptTemplate.from_messages([
     ("system", (
         "You are Dephyr's Autonomous Remediation Engineer. You must fix {cve_id} in repository {repo_name}. "
         "The exposure report is: {report}. "
-        "Your workflow: \n"
-        "1. Use `trigger_remediation` to bump the dependency and open a PR.\n"
-        "2. Use `check_ci_status` with the returned PR number to see if tests pass.\n"
-        "3. If CI fails, use `get_ci_logs` with the run_id to read the errors.\n"
-        "4. Use `apply_followup_patch` to fix the broken code on the branch.\n"
-        "5. Repeat CI checking until successful. Stop and summarize once CI passes."
+        "CRITICAL RULES: \n"
+        "- NEVER call more than one tool at a time.\n"
+        "- NEVER hallucinate or guess a tool name.\n"
+        "- You MUST follow this exact strict sequence:\n"
+        "  Step 1. Call `trigger_remediation` first. WAIT for the result.\n"
+        "  Step 2. Call `check_ci_status` using the PR number from Step 1. WAIT for the result.\n"
+        "  Step 3. If CI failed, call `get_ci_logs`. If CI passed, STOP and summarize.\n"
+        "  Step 4. If you got logs, call `apply_followup_patch` to fix the code.\n"
     )),
-    ("human", "Begin or continue the remediation process. Check your tool results to decide the next step."),
+    ("human", "Begin or continue the remediation process. What is your EXACT next step?"),
     ("placeholder", "{messages}")
 ])
 
