@@ -7,14 +7,12 @@ class RustClient:
     def __init__(self, client: httpx.AsyncClient):
         self.client = client
 
-    async def scan(self, repo_path, package: str, version: str | None = None, vulnerable_function: str | None = None) -> dict:
+    async def scan(self, repo_path, package: str, version: str | None = None) -> dict:
         payload = {
             'repo': str(repo_path),
             'package': package,
             'version': version or 'latest',
         }
-        if vulnerable_function:
-            payload['vulnerable_function'] = vulnerable_function
 
         if settings.rust_mock:
             # Simulated AST scan results using the exact Rust engine JSON schema
@@ -33,7 +31,7 @@ class RustClient:
                         ],
                         "calls": [
                             {
-                                "function": vulnerable_function or "process_data",
+                                "function": "process_data",
                                 "attribute": None,
                                 "args": "req.params",
                                 "start": 84,
@@ -55,9 +53,12 @@ class RustClient:
             })
             return summary
 
+        # Format target URL safely (handles both base URL and /scan suffix in rust_url)
+        target_url = settings.rust_url if settings.rust_url.endswith('/scan') else settings.rust_url.rstrip('/') + '/scan'
+
         try:
             response = await self.client.post(
-                settings.rust_url.rstrip('/') + '/scan',
+                target_url,
                 json=payload,
                 timeout=90
             )
