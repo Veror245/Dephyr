@@ -37,7 +37,12 @@ export default function RecentActivityFeed() {
 
       {/* Stream preview list */}
       <div className="space-y-3">
-        {recentEvents.map((evt) => (
+        {recentEvents.length === 0 ? (
+          <div className="p-5 rounded-card bg-[#161619] border border-white/[0.04] text-xs text-[#8e8e8e] text-center">
+            No autonomous activity logged in this session yet. Events will appear when repository scans or agent patches execute.
+          </div>
+        ) : (
+          recentEvents.map((evt) => (
           <div
             key={evt.id}
             className="p-3.5 sm:p-4 rounded-card bg-[#161619] border border-white/[0.04] hover:bg-[#1a1a1e] hover:border-white/[0.08] transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
@@ -66,7 +71,8 @@ export default function RecentActivityFeed() {
               </span>
             </div>
           </div>
-        ))}
+        ))
+      )}
       </div>
     </div>
   );

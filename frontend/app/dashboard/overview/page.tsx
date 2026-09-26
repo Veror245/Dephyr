@@ -146,11 +146,18 @@ export default function OverviewPage() {
             </div>
 
             <div className="divide-y divide-white/[0.04]">
-              {criticalRepos.map((repo) => (
-                <div
-                  key={repo.id}
-                  className="py-4 flex items-center justify-between gap-4 text-xs"
-                >
+              {criticalRepos.length === 0 ? (
+                <div className="py-8 text-center text-xs text-[#8e8e8e]">
+                  {repositories.length === 0
+                    ? "No repositories scanned yet. Scan a repository to view exposures."
+                    : "All monitored repositories are verified safe. No active exposures."}
+                </div>
+              ) : (
+                criticalRepos.map((repo) => (
+                  <div
+                    key={repo.id}
+                    className="py-4 flex items-center justify-between gap-4 text-xs"
+                  >
                   <div className="min-w-0 space-y-1">
                     <div className="flex items-center gap-2.5">
                       <span className="font-semibold text-white text-sm">
@@ -175,7 +182,8 @@ export default function OverviewPage() {
                     {repo.lastScanned}
                   </span>
                 </div>
-              ))}
+              ))
+            )}
             </div>
           </div>
 

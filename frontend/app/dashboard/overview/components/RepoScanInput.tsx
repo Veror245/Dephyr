@@ -25,7 +25,7 @@ export default function RepoScanInput() {
   const [repoInput, setRepoInput] = useState("");
   const [state, setState] = useState<ScanState>("idle");
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [activeRepo, setActiveRepo] = useState("dephyr-demo/repo-c");
+  const [activeRepo, setActiveRepo] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
