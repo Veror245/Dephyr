@@ -108,7 +108,8 @@ fn analyze_file(path: &Path, import: &str, queries: &Queries) -> Option<ScanRes>
     let mut imported = false;
 
     for imp in imports {
-        if imp.module == import {
+        let parts: Vec<&str> = imp.module.split(|c| c == '.' || c == '_').collect();
+        if parts[0] == import {
             imported = true;
             alias = imp.alias.clone();
             ress.imports.push(imp);
