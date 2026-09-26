@@ -1,5 +1,6 @@
 use dephyr::{analysis, deps, parser, scanner, walker};
 use std::path::Path;
+use std::time::Instant;
 
 #[tokio::main]
 async fn main() {
@@ -8,15 +9,20 @@ async fn main() {
     // let mut tree = parser::parse_python(path).unwrap();
     // let queries = analysis::Queries::default();
 
-    let path = Path::new("/mnt/shared/projects/Autonomous-Incident-Response-System/");
-    let dep = deps::dependency_info(path, "dotenv");
+    let path = Path::new("/mnt/shared/projects/ResearchForge");
+    // let dep = deps::dependency_info(path, "dotenv");
+    //
+    // println!("{:?}", dep);
+    //
+    // let files = walker::walk_dir(path);
+    // println!("{:?}",files);
+    //
+    //
 
-    println!("{:?}", dep);
-
-    let files = walker::walk_dir(path);
-    println!("{:?}", files);
-
-    scanner::scan(path, "requests");
+    let str = Instant::now();
+    let res = scanner::scan(path, "fastapi");
+    println!("{:?}", res);
+    println!("Elapsed: {}", str.elapsed().as_secs_f64());
 
     let app = dephyr::api::router();
 

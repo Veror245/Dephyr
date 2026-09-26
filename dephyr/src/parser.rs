@@ -3,17 +3,17 @@ use tree_sitter::{Node, Parser, Tree};
 
 use crate::analysis::{self, Queries};
 
-pub fn parse_python(path: &str) -> Option<Tree> {
+pub fn parse_python(scode: &str) -> Option<Tree> {
     let mut parser = Parser::new();
 
     parser
         .set_language(&tree_sitter_python::LANGUAGE.into())
         .expect("Error loading python grammar");
 
-    let mut file = File::open(path).expect("Wrong Path");
-    let mut scode = String::new();
-
-    file.read_to_string(&mut scode).expect("File Non Existent");
+    // let mut file = File::open(path).expect("Wrong Path");
+    // let mut scode = String::new();
+    //
+    // file.read_to_string(&mut scode).expect("File Non Existent");
 
     // println!("{}", scode);
 
