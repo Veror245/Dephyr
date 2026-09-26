@@ -79,10 +79,20 @@ export default function ScanResultPanel({
                 <ExternalLink className="w-4 h-4" />
               </a>
             </div>
-            <p className="text-xs text-[#8e8e8e] mt-0.5">
-              {isSafe
-                ? "Scanned dependencies · 0 reachable tainted paths detected"
-                : "Scanned dependencies · 1 critical tainted path reachable"}
+            <p className="text-xs text-[#8e8e8e] mt-0.5 flex flex-wrap items-center gap-1.5">
+              <span>
+                {isSafe
+                  ? "Scanned dependencies · 0 reachable tainted paths detected"
+                  : "Scanned dependencies · 1 critical tainted path reachable"}
+              </span>
+              {currentRepo?.total_function_call !== undefined && (
+                <>
+                  <span>·</span>
+                  <span className="text-[#00d2ff] font-mono font-medium">
+                    {currentRepo.total_function_call} AST function call{currentRepo.total_function_call === 1 ? "" : "s"} across {currentRepo.files?.length || 1} file{currentRepo.files?.length === 1 ? "" : "s"}
+                  </span>
+                </>
+              )}
             </p>
           </div>
         </div>

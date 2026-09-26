@@ -7,7 +7,8 @@ import { TrendingUp } from "lucide-react";
 import { useDashboardData } from "../context/DashboardDataContext";
 
 export default function RemediationTimelinePage() {
-  const { cves, loadingCves } = useDashboardData();
+  const { cves, loadingCves, scanHistory } = useDashboardData();
+  const totalFunctionCalls = scanHistory.reduce((sum, s) => sum + s.total_function_call, 0);
 
   return (
     <div className="space-y-6 w-full">
@@ -22,17 +23,20 @@ export default function RemediationTimelinePage() {
               Remediation Velocity & Telemetry
             </h2>
             <p className="text-xs sm:text-sm text-[#8e8e8e] leading-relaxed max-w-3xl">
-              Longitudinal tracking of disclosed CVEs ingested from live NIST NVD streams. PR resolution metrics pending backend PR tracking.
+              Longitudinal tracking of disclosed CVEs vs. analyzed AST function calls. PR resolution metrics pending backend PR tracking.
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-4 text-xs font-mono shrink-0 pl-14 md:pl-0">
           <div className="px-3.5 py-1.5 rounded-pill bg-[#161619] border border-white/[0.06] flex items-center gap-2">
-            <span className="text-[#8e8e8e]">Live Ingested:</span>
+            <span className="text-[#8e8e8e]">Disclosures:</span>
             <span className="text-[#ff7300] font-bold">
-              {loadingCves ? "..." : `${cves.length} CVEs`}
+              {loadingCves ? "..." : `${cves.length}`}
             </span>
+            <span className="text-[#8e8e8e]">·</span>
+            <span className="text-[#8e8e8e]">Calls Analyzed:</span>
+            <span className="text-[#00d2ff] font-bold">{totalFunctionCalls}</span>
             <span className="text-[#8e8e8e]">·</span>
             <span className="text-[#8e8e8e]">Window:</span>
             <span className="text-white font-bold">7-Day Rolling</span>

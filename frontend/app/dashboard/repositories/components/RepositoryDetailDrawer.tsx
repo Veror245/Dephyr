@@ -85,7 +85,9 @@ export default function RepositoryDetailDrawer({
           {
             file: "src/index.js",
             imports: [{ module: "example-lib", name: "parseQuery", start: 12, end: 40 }],
+            total_imports: 1,
             calls: [{ function: "parseQuery", args: "req.query", start: 84, end: 110 }],
+            total_calls: 1,
           },
         ],
       });
