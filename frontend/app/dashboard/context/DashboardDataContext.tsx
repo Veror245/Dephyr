@@ -11,11 +11,8 @@ import React, {
 } from "react";
 import {
   RepositoryRecord,
-  MOCK_REPOSITORIES,
   VulnerabilityRecord,
-  MOCK_CVES,
   AgentLogEvent,
-  MOCK_AGENT_EVENTS,
   PullRequestRecord,
   MOCK_PULL_REQUESTS,
 } from "../lib/mock-data";
@@ -38,6 +35,7 @@ interface DashboardDataContextType {
   pullRequests: PullRequestRecord[];
   stats: DashboardStats;
   loadingCves: boolean;
+  cveError: string | null;
   recordScan: (repoName: string, scanResult: any, packageName?: string) => Promise<void>;
   addRepository: (repo: RepositoryRecord) => void;
   updateRepository: (id: string, updates: Partial<RepositoryRecord>) => void;
@@ -50,101 +48,92 @@ const DashboardDataContext = createContext<DashboardDataContextType | undefined>
   undefined
 );
 
-const STORAGE_KEY_REPOS = "dephyr_monitored_repositories";
-const STORAGE_KEY_EVENTS = "dephyr_agent_events";
-
 export function DashboardDataProvider({ children }: { children: ReactNode }) {
-  const [repositories, setRepositories] = useState<RepositoryRecord[]>(MOCK_REPOSITORIES);
-  const [cves, setCves] = useState<VulnerabilityRecord[]>(MOCK_CVES);
-  const [agentEvents, setAgentEvents] = useState<AgentLogEvent[]>(MOCK_AGENT_EVENTS);
+  // Session-scoped live state (resets on refresh as instructed in Step 6b, no fabricated localStorage)
+  const [repositories, setRepositories] = useState<RepositoryRecord[]>([]);
+  const [cves, setCves] = useState<VulnerabilityRecord[]>([]);
+  const [agentEvents, setAgentEvents] = useState<AgentLogEvent[]>([]);
   const [pullRequests, setPullRequests] = useState<PullRequestRecord[]>(MOCK_PULL_REQUESTS);
   const [loadingCves, setLoadingCves] = useState(false);
-  const [isHydrated, setIsHydrated] = useState(false);
+  const [cveError, setCveError] = useState<string | null>(null);
 
-  // 1. Hydrate state from localStorage on initial client mount
-  useEffect(() => {
-    try {
-      const savedRepos = localStorage.getItem(STORAGE_KEY_REPOS);
-      if (savedRepos) {
-        const parsed = JSON.parse(savedRepos);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setRepositories(parsed);
-        }
-      }
-
-      const savedEvents = localStorage.getItem(STORAGE_KEY_EVENTS);
-      if (savedEvents) {
-        const parsed = JSON.parse(savedEvents);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setAgentEvents(parsed);
-        }
-      }
-    } catch (e) {
-      console.warn("Failed to restore dashboard state from localStorage:", e);
-    } finally {
-      setIsHydrated(true);
-    }
-  }, []);
-
-  // 2. Persist repositories to localStorage whenever they change
-  useEffect(() => {
-    if (!isHydrated) return;
-    try {
-      localStorage.setItem(STORAGE_KEY_REPOS, JSON.stringify(repositories));
-    } catch (e) {
-      console.warn("Failed to persist repositories to localStorage:", e);
-    }
-  }, [repositories, isHydrated]);
-
-  // 3. Persist agentEvents to localStorage whenever they change
-  useEffect(() => {
-    if (!isHydrated) return;
-    try {
-      localStorage.setItem(STORAGE_KEY_EVENTS, JSON.stringify(agentEvents));
-    } catch (e) {
-      console.warn("Failed to persist agent events to localStorage:", e);
-    }
-  }, [agentEvents, isHydrated]);
-
-  // 4. Fetch live latest CVEs from GET /cves/latest
+  // Fetch live latest CVEs from GET /cves/latest and hydrate details from GET /cves/{cve_id}
   const refreshCves = useCallback(async () => {
     setLoadingCves(true);
+    setCveError(null);
     try {
-      const response = await api.cves.getLatest(15);
-      if (response && Array.isArray(response.cves) && response.cves.length > 0) {
-        const liveList: VulnerabilityRecord[] = response.cves.map((item, idx) => {
-          const existing = MOCK_CVES.find(
-            (m) => m.cveId.toLowerCase() === item.id.toLowerCase()
+      const response = await api.cves.getLatest(10);
+      if (response && Array.isArray(response.cves)) {
+        if (response.cves.length === 0) {
+          setCves([]);
+          return;
+        }
+
+        // 1. Immediately populate feed with real NVD entries from /cves/latest
+        const initialList: VulnerabilityRecord[] = response.cves.map((item) => ({
+          id: item.id.toLowerCase(),
+          cveId: item.id,
+          package: "External NVD Disclosure",
+          affectedVersions: "See advisory",
+          fixedVersion: "Check vendor release",
+          severity: "UNKNOWN",
+          cvss: 0,
+          exposureLevel: 0,
+          status: "INVESTIGATING",
+          detectedAt: item.published
+            ? new Date(item.published).toLocaleDateString()
+            : "Recently disclosed",
+          summary: `Disclosed vulnerability ${item.id} ingested from live NVD stream.`,
+          description: "Fetching full vulnerability disclosure advisory...",
+        }));
+
+        setCves(initialList);
+
+        // 2. Concurrently fetch real details from GET /cves/{cve_id} to populate real severity & CVSS
+        Promise.allSettled(
+          response.cves.map((item) => api.cves.getDetails(item.id))
+        ).then((detailResults) => {
+          setCves((prev) =>
+            prev.map((rec, idx) => {
+              const res = detailResults[idx];
+              if (res && res.status === "fulfilled" && res.value) {
+                const d = res.value;
+                const rawSev = (d.severity || "UNKNOWN").toUpperCase();
+                let validSev: VulnerabilityRecord["severity"] = "UNKNOWN" as any;
+                if (rawSev === "CRITICAL" || rawSev === "HIGH" || rawSev === "MEDIUM" || rawSev === "LOW") {
+                  validSev = rawSev;
+                }
+
+                const cvss = d.cvss_score ?? 0;
+                let exposureLevel: 0 | 1 | 2 | 3 = 0;
+                if (validSev === "CRITICAL") exposureLevel = 3;
+                else if (validSev === "HIGH") exposureLevel = 2;
+                else if (validSev === "MEDIUM") exposureLevel = 1;
+
+                return {
+                  ...rec,
+                  severity: validSev,
+                  cvss,
+                  exposureLevel,
+                  summary: d.description
+                    ? d.description.length > 140
+                      ? d.description.slice(0, 140) + "..."
+                      : d.description
+                    : rec.summary,
+                  description: d.description || rec.description,
+                  detectedAt: d.published
+                    ? new Date(d.published).toLocaleDateString()
+                    : rec.detectedAt,
+                };
+              }
+              return rec;
+            })
           );
-          if (existing) {
-            return {
-              ...existing,
-              detectedAt: item.published
-                ? new Date(item.published).toLocaleDateString()
-                : existing.detectedAt,
-            };
-          }
-          return {
-            id: item.id.toLowerCase(),
-            cveId: item.id,
-            package: "Pending AST match",
-            affectedVersions: "All declared versions",
-            fixedVersion: "Analysis in progress",
-            severity: idx % 3 === 0 ? "CRITICAL" : idx % 3 === 1 ? "HIGH" : "MEDIUM",
-            cvss: idx % 3 === 0 ? 9.1 : idx % 3 === 1 ? 7.8 : 5.4,
-            exposureLevel: 1,
-            status: "INVESTIGATING",
-            detectedAt: item.published
-              ? new Date(item.published).toLocaleDateString()
-              : "Recently disclosed",
-            summary: `Automated ingestion of ${item.id} from NVD intelligence stream.`,
-            description: "Fetching full vulnerability disclosure advisory and affected CPE entries...",
-          };
         });
-        setCves(liveList);
       }
     } catch (err) {
       console.warn("Failed to fetch /cves/latest:", err);
+      setCveError(err instanceof Error ? err.message : "Failed to connect to /cves/latest");
     } finally {
       setLoadingCves(false);
     }
@@ -154,7 +143,7 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
     refreshCves();
   }, [refreshCves]);
 
-  // 5. Calculate reactive aggregate statistics
+  // Calculate reactive aggregate statistics derived strictly from real tracked data
   const stats = useMemo<DashboardStats>(() => {
     const monitoredRepos = repositories.length;
     const criticalCount = repositories.filter((r) => r.risk === "CRITICAL").length;
@@ -175,7 +164,7 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
     };
   }, [repositories, cves, pullRequests]);
 
-  // 6. Action: Record a completed scan (updates repos, stats, events)
+  // Action: Record a completed scan (updates repos, stats, events)
   const recordScan = useCallback(
     async (repoName: string, scanResult: any, packageName?: string) => {
       const cleanName = repoName
@@ -186,18 +175,21 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
       const name = parts.length > 1 ? parts[1] : cleanName;
       const repoId = name.toLowerCase().replace(/[^a-z0-9_-]/g, "-");
 
-      const totalCalls = scanResult?.total_calls ?? 0;
-      const totalImports = scanResult?.total_imports ?? 0;
-      const filesScanned = scanResult?.files_scanned ?? 0;
       const findingsList = Array.isArray(scanResult?.res) ? scanResult.res : [];
+      const totalCalls =
+        findingsList.reduce((acc: number, f: any) => acc + (f.calls?.length || 0), 0) +
+        (scanResult?.total_calls || 0);
+      const totalImports =
+        findingsList.reduce((acc: number, f: any) => acc + (f.imports?.length || 0), 0) +
+        (scanResult?.total_imports || 0);
+      const filesScanned = scanResult?.files_scanned || findingsList.length;
 
-      // Determine risk and exposure level from AST scan findings
       let risk: "CRITICAL" | "MEDIUM" | "SAFE" = "SAFE";
       let activeExposures = 0;
-      let remediationStatus = "Clean: No reachable call sites";
+      let remediationStatus = "Clean: 0 reachable call sites detected";
       let affectedCves: string[] = [];
 
-      if (totalCalls > 0 || (findingsList.length > 0 && findingsList.some((f: any) => f.calls?.length > 0))) {
+      if (totalCalls > 0) {
         risk = "CRITICAL";
         activeExposures = 1;
         remediationStatus = `Action Required: ${totalCalls} active call site${totalCalls > 1 ? "s" : ""} detected`;
@@ -209,7 +201,6 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
         affectedCves = [packageName ? `${packageName} (Uncalled)` : "Imported Symbol"];
       }
 
-      // Check if this repository is already tracked
       setRepositories((prev) => {
         const existingIndex = prev.findIndex(
           (r) =>
@@ -232,7 +223,6 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
           return updated;
         }
 
-        // Add as a new monitored repository
         const newRepo: RepositoryRecord = {
           id: repoId,
           name,
@@ -249,7 +239,7 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
         return [newRepo, ...prev];
       });
 
-      // Query GitHub metadata for the newly scanned repo if not fictional
+      // Query GitHub metadata for the newly scanned repo if reachable
       if (org !== "dephyr-demo") {
         try {
           const meta = await api.repositories.getMetadata({ repo: cleanName });
@@ -310,10 +300,8 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const resetToDefaults = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEY_REPOS);
-    localStorage.removeItem(STORAGE_KEY_EVENTS);
-    setRepositories(MOCK_REPOSITORIES);
-    setAgentEvents(MOCK_AGENT_EVENTS);
+    setRepositories([]);
+    setAgentEvents([]);
   }, []);
 
   return (
@@ -325,6 +313,7 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
         pullRequests,
         stats,
         loadingCves,
+        cveError,
         recordScan,
         addRepository,
         updateRepository,

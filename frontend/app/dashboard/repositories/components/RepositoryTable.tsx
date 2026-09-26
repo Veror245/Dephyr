@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { RepositoryRecord, MOCK_REPOSITORIES } from "../../lib/mock-data";
+import { RepositoryRecord } from "../../lib/mock-data";
 import RepositoryRiskBadge from "./RepositoryRiskBadge";
 import { Search, ChevronRight, RefreshCw, CheckCircle2 } from "lucide-react";
 
@@ -25,7 +25,7 @@ export default function RepositoryTable({
   const [filterRisk, setFilterRisk] = useState<string>("ALL");
   const [search, setSearch] = useState("");
 
-  const dataList = repositories && repositories.length > 0 ? repositories : MOCK_REPOSITORIES;
+  const dataList = repositories || [];
 
   const filtered = dataList.filter((r) => {
     const matchesRisk = filterRisk === "ALL" || r.risk === filterRisk;
@@ -104,8 +104,17 @@ export default function RepositoryTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-white/[0.04]">
-            {filtered.map((repo) => {
-              const isSelected = repo.id === selectedRepoId;
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="py-12 text-center text-[#8e8e8e]">
+                  {dataList.length === 0
+                    ? "No repositories scanned yet in this session. Run a scan from the Overview page to analyze and monitor repositories."
+                    : "No repositories found matching your filter criteria."}
+                </td>
+              </tr>
+            ) : (
+              filtered.map((repo) => {
+                const isSelected = repo.id === selectedRepoId;
               return (
                 <tr
                   key={repo.id}
@@ -153,7 +162,8 @@ export default function RepositoryTable({
                   </td>
                 </tr>
               );
-            })}
+            })
+            )}
           </tbody>
         </table>
       </div>

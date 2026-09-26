@@ -12,6 +12,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import UserMenu from "./UserMenu";
+import { useDashboardData } from "../context/DashboardDataContext";
 
 interface TopbarProps {
   onOpenSidebar: () => void;
@@ -53,6 +54,7 @@ const ROUTE_TITLES: Record<string, { title: string; subtitle: string }> = {
 };
 
 export default function Topbar({ onOpenSidebar }: TopbarProps) {
+  const { agentEvents } = useDashboardData();
   const pathname = usePathname();
   const [showNotifications, setShowNotifications] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -120,7 +122,9 @@ export default function Topbar({ onOpenSidebar }: TopbarProps) {
             aria-label="Notifications"
           >
             <Bell className="w-4 h-4" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#ff7300] ring-2 ring-[#141417]" />
+            {agentEvents.length > 0 && (
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#ff7300] ring-2 ring-[#141417]" />
+            )}
           </button>
 
           {/* Notifications Dropdown */}
@@ -131,48 +135,40 @@ export default function Topbar({ onOpenSidebar }: TopbarProps) {
                   Operational Alerts
                 </span>
                 <span className="text-[10px] text-[#ff7300] font-mono">
-                  2 UNREAD
+                  {agentEvents.length > 0 ? `${agentEvents.length} LOGGED` : "0 ACTIVE"}
                 </span>
               </div>
 
-              <div className="py-1 divide-y divide-white/5 text-xs">
-                <div className="p-2.5 hover:bg-white/5 rounded-control transition-colors cursor-pointer">
-                  <div className="flex items-start gap-2">
-                    <span className="p-1 rounded bg-[#ff5252]/10 text-[#ff5252] shrink-0 mt-0.5">
-                      <AlertTriangle className="w-3.5 h-3.5" />
-                    </span>
-                    <div className="min-w-0">
-                      <p className="font-medium text-white truncate">
-                        Level 3 Exposure in repo-c
-                      </p>
-                      <p className="text-[11px] text-[#8e8e8e] mt-0.5">
-                        CVE-2026-4891: parseQuery() taint flow identified.
-                      </p>
-                      <span className="text-[10px] text-[#8e8e8e]">
-                        2 min ago
-                      </span>
-                    </div>
+              <div className="py-1 divide-y divide-white/5 text-xs max-h-64 overflow-y-auto custom-scrollbar">
+                {agentEvents.length === 0 ? (
+                  <div className="p-4 text-center text-xs text-[#8e8e8e]">
+                    No operational alerts in this session. Alerts will appear as repository scans and agent jobs execute.
                   </div>
-                </div>
-
-                <div className="p-2.5 hover:bg-white/5 rounded-control transition-colors cursor-pointer">
-                  <div className="flex items-start gap-2">
-                    <span className="p-1 rounded bg-[#52e185]/10 text-[#52e185] shrink-0 mt-0.5">
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                    </span>
-                    <div className="min-w-0">
-                      <p className="font-medium text-white truncate">
-                        Autonomous PR #42 Verified
-                      </p>
-                      <p className="text-[11px] text-[#8e8e8e] mt-0.5">
-                        CI tests passed (84/84) after self-healing patch.
-                      </p>
-                      <span className="text-[10px] text-[#8e8e8e]">
-                        12 min ago
-                      </span>
+                ) : (
+                  agentEvents.slice(0, 5).map((evt) => (
+                    <div
+                      key={evt.id}
+                      className="p-2.5 hover:bg-white/5 rounded-control transition-colors"
+                    >
+                      <div className="flex items-start gap-2">
+                        <span className="p-1 rounded bg-[#ff7300]/10 text-[#ff7300] shrink-0 mt-0.5">
+                          <AlertTriangle className="w-3.5 h-3.5" />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="font-medium text-white truncate">
+                            {evt.text}
+                          </p>
+                          <p className="text-[11px] text-[#8e8e8e] mt-0.5">
+                            Target: {evt.repo} [{evt.badge}]
+                          </p>
+                          <span className="text-[10px] text-[#8e8e8e]">
+                            {evt.timestamp}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
+                  ))
+                )}
               </div>
             </div>
           )}

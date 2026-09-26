@@ -1,15 +1,16 @@
 "use client";
 
 import React, { useState } from "react";
-import { MOCK_PULL_REQUESTS } from "../../lib/mock-data";
 import PullRequestCard from "./PullRequestCard";
 import { Search } from "lucide-react";
+import { useDashboardData } from "../../context/DashboardDataContext";
 
 export default function PullRequestList() {
+  const { pullRequests } = useDashboardData();
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
   const [search, setSearch] = useState("");
 
-  const filteredPrs = MOCK_PULL_REQUESTS.filter((pr) => {
+  const filteredPrs = pullRequests.filter((pr) => {
     const matchesStatus =
       filterStatus === "ALL" ||
       (filterStatus === "PASSED" && pr.ciStatus === "passed") ||

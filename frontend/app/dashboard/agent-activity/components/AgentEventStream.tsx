@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
-import { MOCK_AGENT_EVENTS, AgentLogEvent } from "../../lib/mock-data";
+import { AgentLogEvent } from "../../lib/mock-data";
 import AgentEventRow from "./AgentEventRow";
 import LiveStatusIndicator from "./LiveStatusIndicator";
 import { Play, Pause, Terminal, Send, Loader2, CheckCircle2, AlertCircle, Wifi } from "lucide-react";
@@ -433,7 +433,7 @@ export default function AgentEventStream() {
             Repository:
           </span>
           <div className="flex items-center gap-1 p-0.5 rounded-pill bg-[#1c1c20] border border-white/[0.06] text-xs">
-            {["ALL", "repo-c", "gateway-proxy", "dephyr-runtime"].map((repo) => (
+            {["ALL", ...Array.from(new Set(events.map((e) => e.repo)))].map((repo) => (
               <button
                 key={repo}
                 onClick={() => setSelectedRepo(repo)}
@@ -455,7 +455,7 @@ export default function AgentEventStream() {
             Filter Stage:
           </span>
           <div className="flex items-center gap-1 p-0.5 rounded-pill bg-[#1c1c20] border border-white/[0.06] text-xs">
-            {["ALL", "ALERT", "GIT", "CI FAIL", "CI PASS"].map((badge) => (
+            {["ALL", "ALERT", "GIT", "CI FAIL", "CI PASS", "STATIC"].map((badge) => (
               <button
                 key={badge}
                 onClick={() => setSelectedBadge(badge)}
@@ -474,9 +474,15 @@ export default function AgentEventStream() {
 
       {/* Log Events List */}
       <div className="p-6 sm:p-7 space-y-3 max-h-[640px] overflow-y-auto custom-scrollbar">
-        {filteredEvents.map((evt) => (
-          <AgentEventRow key={evt.id} event={evt} />
-        ))}
+        {filteredEvents.length === 0 ? (
+          <div className="p-8 text-center text-xs text-[#8e8e8e]">
+            No agent events logged in this session yet. Events stream in real-time when repository scans or remediation jobs execute.
+          </div>
+        ) : (
+          filteredEvents.map((evt) => (
+            <AgentEventRow key={evt.id} event={evt} />
+          ))
+        )}
       </div>
 
       {/* Terminal Footer */}

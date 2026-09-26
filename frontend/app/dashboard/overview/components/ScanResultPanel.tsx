@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { ExternalLink, RefreshCw, ArrowRight, ShieldAlert, GitPullRequest, Terminal } from "lucide-react";
-import { MOCK_CVES, VulnerabilityRecord } from "../../lib/mock-data";
+import { VulnerabilityRecord } from "../../lib/mock-data";
 import VulnerabilityCard from "./VulnerabilityCard";
 import { useDashboardData } from "../../context/DashboardDataContext";
 
@@ -30,23 +30,20 @@ export default function ScanResultPanel({
 
   const resultVulnerabilities: VulnerabilityRecord[] = isSafe
     ? []
-    : [
-        MOCK_CVES[0],
-        {
-          id: "cve-2026-2209",
-          cveId: "CVE-2026-2209",
-          package: "cookie-signature",
-          affectedVersions: "< 1.0.6",
-          fixedVersion: "1.0.6",
-          severity: "LOW",
-          cvss: 3.1,
-          exposureLevel: 0,
-          status: "TRIAGED",
-          detectedAt: "Just now",
-          summary: "Timing discrepancy in HMAC comparison",
-          description: "Level 0 evidence: module is transitive dependency in lockfile, but verifyCookie() symbol is never imported.",
-        },
-      ];
+    : (currentRepo?.affectedCves || []).map((cveName, idx) => ({
+        id: `${cleanRepoName.replace(/[^a-z0-9_-]/g, "-")}-vuln-${idx}`,
+        cveId: cveName,
+        package: currentRepo?.name || "Target Module",
+        affectedVersions: "AST Reachable",
+        fixedVersion: "Upgrade dependency or patch AST call site",
+        severity: (currentRepo?.risk === "CRITICAL" ? "CRITICAL" : "MEDIUM") as VulnerabilityRecord["severity"],
+        cvss: currentRepo?.risk === "CRITICAL" ? 8.5 : 5.0,
+        exposureLevel: (currentRepo?.risk === "CRITICAL" ? 2 : 1) as 0 | 1 | 2 | 3,
+        status: "INVESTIGATING" as const,
+        detectedAt: currentRepo?.lastScanned || "Just now",
+        summary: `Vulnerability exposure detected in ${cleanRepoName}: ${currentRepo?.remediationStatus}`,
+        description: `Analysis completed on ${currentRepo?.defaultBranch || "main"} branch. ${currentRepo?.remediationStatus}`,
+      }));
 
   return (
     <div className="w-full rounded-panel bg-[#121214] border border-white/[0.12] p-7 lg:p-8 shadow-2xl animate-in fade-in duration-300 space-y-6">
@@ -66,13 +63,13 @@ export default function ScanResultPanel({
           <div>
             <div className="flex items-center gap-2.5">
               <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">
-                {cleanRepoName || "dephyr-demo/repo-c"}
+                {cleanRepoName}
               </h2>
               <a
                 href={
                   repoUrl.startsWith("http")
                     ? repoUrl
-                    : `https://github.com/${cleanRepoName || "dephyr-demo/repo-c"}`
+                    : `https://github.com/${cleanRepoName}`
                 }
                 target="_blank"
                 rel="noopener noreferrer"
@@ -145,11 +142,17 @@ export default function ScanResultPanel({
       {/* Vulnerability Cards List */}
       <div className="space-y-4">
         <div className="text-xs font-semibold text-[#8e8e8e] uppercase tracking-wider pl-1">
-          Detected Vulnerabilities (2)
+          Detected Vulnerabilities ({resultVulnerabilities.length})
         </div>
-        {resultVulnerabilities.map((vuln) => (
-          <VulnerabilityCard key={vuln.id} vuln={vuln} />
-        ))}
+        {resultVulnerabilities.length > 0 ? (
+          resultVulnerabilities.map((vuln) => (
+            <VulnerabilityCard key={vuln.id} vuln={vuln} />
+          ))
+        ) : (
+          <div className="p-5 rounded-card bg-[#161619] border border-white/[0.04] text-xs text-[#8e8e8e]">
+            No vulnerable dependencies with reachable call sites detected in this repository.
+          </div>
+        )}
       </div>
 
       {/* Action Footer */}

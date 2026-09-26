@@ -56,13 +56,23 @@ export default function HeroStatCard() {
           <span className="font-display text-5xl sm:text-6xl text-white font-bold tracking-tight">
             {stats.activeExposures}
           </span>
-          <span className="text-xs font-bold px-2.5 py-1 rounded-control bg-[#ff5252]/15 text-[#ff5252] border border-[#ff5252]/30 uppercase tracking-wide">
-            ACTION REQUIRED
-          </span>
+          {stats.activeExposures > 0 ? (
+            <span className="text-xs font-bold px-2.5 py-1 rounded-control bg-[#ff5252]/15 text-[#ff5252] border border-[#ff5252]/30 uppercase tracking-wide">
+              ACTION REQUIRED
+            </span>
+          ) : stats.monitoredRepos > 0 ? (
+            <span className="text-xs font-bold px-2.5 py-1 rounded-control bg-[#52e185]/15 text-[#52e185] border border-[#52e185]/30 uppercase tracking-wide">
+              POSTURE SECURE
+            </span>
+          ) : (
+            <span className="text-xs font-bold px-2.5 py-1 rounded-control bg-white/5 text-[#8e8e8e] border border-white/10 uppercase tracking-wide">
+              READY FOR SCAN
+            </span>
+          )}
         </div>
 
         <div className="text-sm text-[#8e8e8e]">
-          across <span className="text-white font-semibold">{stats.monitoredRepos} monitored repositories</span>
+          across <span className="text-white font-semibold">{stats.monitoredRepos} monitored {stats.monitoredRepos === 1 ? "repository" : "repositories"}</span>
         </div>
       </div>
 
