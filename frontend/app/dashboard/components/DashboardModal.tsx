@@ -25,6 +25,13 @@ export default function DashboardModal({
   const [cachedChildren, setCachedChildren] = useState<React.ReactNode>(children);
   const { setModalOpen } = useModal();
 
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  const setModalOpenRef = useRef(setModalOpen);
+  setModalOpenRef.current = setModalOpen;
+
+  const prevIsOpenRef = useRef(false);
   const backdropRef = useRef<HTMLDivElement | null>(null);
   const modalRef = useRef<HTMLDivElement | null>(null);
   const isClosingRef = useRef(false);
@@ -46,7 +53,7 @@ export default function DashboardModal({
     isClosingRef.current = true;
 
     // Notify layout shell to restore sidebar and list width simultaneously
-    setModalOpen(false);
+    setModalOpenRef.current(false);
 
     const prefersReducedMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)"
@@ -54,7 +61,7 @@ export default function DashboardModal({
 
     if (prefersReducedMotion || !backdropRef.current || !modalRef.current) {
       setIsRendering(false);
-      onClose();
+      onCloseRef.current();
       return;
     }
 
@@ -63,7 +70,7 @@ export default function DashboardModal({
       defaults: { ease: "power2.in" },
       onComplete: () => {
         setIsRendering(false);
-        onClose();
+        onCloseRef.current();
       },
     });
 
@@ -74,16 +81,18 @@ export default function DashboardModal({
       duration: 0.2,
       ease: "power2.in",
     }).to(backdropRef.current, { opacity: 0, duration: 0.18 }, "-=0.12");
-  }, [onClose, setModalOpen]);
+  }, []);
 
-  // Handle open / close animation triggers
+  // Handle open / close animation triggers with state transition guards
   useEffect(() => {
     if (!mounted) return;
 
-    if (isOpen) {
+    // Transition: false -> true (OPEN)
+    if (isOpen && !prevIsOpenRef.current) {
+      prevIsOpenRef.current = true;
       setIsRendering(true);
       isClosingRef.current = false;
-      setModalOpen(true);
+      setModalOpenRef.current(true);
 
       const prevOverflow = document.body.style.overflow;
       document.body.style.overflow = "hidden";
@@ -128,10 +137,16 @@ export default function DashboardModal({
         cancelAnimationFrame(rafId);
         document.body.style.overflow = prevOverflow;
       };
-    } else if (isRendering && !isClosingRef.current) {
-      playExitAnimation();
     }
-  }, [isOpen, mounted, playExitAnimation, isRendering, setModalOpen]);
+
+    // Transition: true -> false (CLOSE)
+    if (!isOpen && prevIsOpenRef.current) {
+      prevIsOpenRef.current = false;
+      if (isRendering && !isClosingRef.current) {
+        playExitAnimation();
+      }
+    }
+  }, [isOpen, mounted, isRendering, playExitAnimation]);
 
   // Handle Escape key
   useEffect(() => {

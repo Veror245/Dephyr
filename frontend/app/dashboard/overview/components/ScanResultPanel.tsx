@@ -26,7 +26,7 @@ export default function ScanResultPanel({
       r.id === cleanRepoName.toLowerCase()
   );
 
-  const isSafe = currentRepo?.risk === "SAFE";
+  const isSafe = currentRepo ? currentRepo.risk === "SAFE" : true;
 
   const resultVulnerabilities: VulnerabilityRecord[] = isSafe
     ? []
@@ -157,28 +157,49 @@ export default function ScanResultPanel({
 
       {/* Action Footer */}
       <div className="pt-4 flex flex-wrap items-center justify-between gap-4 border-t border-white/[0.08]">
-        <span className="text-xs text-[#8e8e8e]">
-          Autonomous branch <code className="font-mono text-white text-xs">dephyr/remediate-cve-2026-4891</code> ready for test execution.
-        </span>
+        {isSafe ? (
+          <>
+            <span className="text-xs text-[#52e185] flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#52e185]" />
+              Repository posture verified secure. All dependency AST call sites are safe.
+            </span>
 
-        <div className="flex items-center gap-3">
-          <Link
-            href="/dashboard/agent-activity"
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-card bg-[#1c1c20] hover:bg-[#28282a] border border-white/10 text-xs font-semibold text-white transition-colors"
-          >
-            <Terminal className="w-3.5 h-3.5 text-[#ff7300]" />
-            View in Agent Activity
-          </Link>
+            <div className="flex items-center gap-3">
+              <Link
+                href="/dashboard/repositories"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-card bg-[#1c1c20] hover:bg-[#28282a] border border-white/10 text-xs font-semibold text-white transition-colors"
+              >
+                <span>View in Repositories</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+          </>
+        ) : (
+          <>
+            <span className="text-xs text-[#8e8e8e]">
+              Autonomous remediation pipeline available for detected tainted AST paths.
+            </span>
 
-          <Link
-            href="/dashboard/pull-requests"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-pill bg-white text-black font-semibold text-xs shadow-glowPill hover:shadow-glowPillHover hover:-translate-y-0.5 transition-all"
-          >
-            <GitPullRequest className="w-3.5 h-3.5" />
-            Inspect PR #42 Fix
-            <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
+            <div className="flex items-center gap-3">
+              <Link
+                href="/dashboard/agent-activity"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-card bg-[#1c1c20] hover:bg-[#28282a] border border-white/10 text-xs font-semibold text-white transition-colors"
+              >
+                <Terminal className="w-3.5 h-3.5 text-[#ff7300]" />
+                View in Agent Activity
+              </Link>
+
+              <Link
+                href="/dashboard/pull-requests"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-pill bg-white text-black font-semibold text-xs shadow-glowPill hover:shadow-glowPillHover hover:-translate-y-0.5 transition-all"
+              >
+                <GitPullRequest className="w-3.5 h-3.5" />
+                <span>Pull Requests</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

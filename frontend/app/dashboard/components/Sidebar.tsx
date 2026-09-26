@@ -47,14 +47,14 @@ export default function Sidebar({
       href: "/dashboard/cve-feed",
       label: "CVE Feed",
       icon: ShieldAlert,
-      badge: stats.cveCount,
+      badge: stats.cveCount > 0 ? stats.cveCount : undefined,
       badgeColor: "amber" as const,
     },
     {
       href: "/dashboard/repositories",
       label: "Repositories",
       icon: GitBranch,
-      badge: stats.monitoredRepos,
+      badge: stats.monitoredRepos > 0 ? stats.monitoredRepos : undefined,
       badgeColor: "neutral" as const,
     },
     {
@@ -68,7 +68,7 @@ export default function Sidebar({
       href: "/dashboard/pull-requests",
       label: "Pull Requests",
       icon: GitPullRequest,
-      badge: stats.prCount,
+      badge: stats.prCount > 0 ? stats.prCount : undefined,
       badgeColor: "neutral" as const,
     },
     {

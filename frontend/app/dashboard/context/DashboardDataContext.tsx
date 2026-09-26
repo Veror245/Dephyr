@@ -53,7 +53,7 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
   const [repositories, setRepositories] = useState<RepositoryRecord[]>([]);
   const [cves, setCves] = useState<VulnerabilityRecord[]>([]);
   const [agentEvents, setAgentEvents] = useState<AgentLogEvent[]>([]);
-  const [pullRequests, setPullRequests] = useState<PullRequestRecord[]>(MOCK_PULL_REQUESTS);
+  const [pullRequests, setPullRequests] = useState<PullRequestRecord[]>([]);
   const [loadingCves, setLoadingCves] = useState(false);
   const [cveError, setCveError] = useState<string | null>(null);
 
@@ -239,30 +239,7 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
         return [newRepo, ...prev];
       });
 
-      // Query GitHub metadata for the newly scanned repo if reachable
-      if (org !== "dephyr-demo") {
-        try {
-          const meta = await api.repositories.getMetadata({ repo: cleanName });
-          if (meta) {
-            setRepositories((prev) =>
-              prev.map((r) =>
-                r.org.toLowerCase() === org.toLowerCase() &&
-                r.name.toLowerCase() === name.toLowerCase()
-                  ? {
-                      ...r,
-                      defaultBranch: meta.default_branch || r.defaultBranch,
-                      url: meta.html_url || r.url,
-                    }
-                  : r
-              )
-            );
-          }
-        } catch {
-          // If GitHub API is unreachable, keep initial values
-        }
-      }
-
-      // Add a live event to agentEvents
+      // 1. Immediately log live event to agentEvents
       const newEvent: AgentLogEvent = {
         id: `evt-scan-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         timestamp: new Date().toLocaleTimeString([], {
@@ -278,6 +255,31 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
       };
 
       setAgentEvents((prev) => [newEvent, ...prev]);
+
+      // 2. Query GitHub metadata in background for the newly scanned repo if reachable
+      if (org !== "dephyr-demo") {
+        api.repositories
+          .getMetadata({ repo: cleanName })
+          .then((meta) => {
+            if (meta) {
+              setRepositories((prev) =>
+                prev.map((r) =>
+                  r.org.toLowerCase() === org.toLowerCase() &&
+                  r.name.toLowerCase() === name.toLowerCase()
+                    ? {
+                        ...r,
+                        defaultBranch: meta.default_branch || r.defaultBranch,
+                        url: meta.html_url || r.url,
+                      }
+                    : r
+                )
+              );
+            }
+          })
+          .catch(() => {
+            // Non-blocking fallback if GitHub token is unavailable
+          });
+      }
     },
     []
   );
@@ -288,9 +290,15 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
 
   const updateRepository = useCallback(
     (id: string, updates: Partial<RepositoryRecord>) => {
-      setRepositories((prev) =>
-        prev.map((r) => (r.id === id ? { ...r, ...updates } : r))
-      );
+      setRepositories((prev) => {
+        const target = prev.find((r) => r.id === id);
+        if (!target) return prev;
+        const hasDiff = Object.entries(updates).some(
+          ([key, value]) => (target as any)[key] !== value
+        );
+        if (!hasDiff) return prev;
+        return prev.map((r) => (r.id === id ? { ...r, ...updates } : r));
+      });
     },
     []
   );

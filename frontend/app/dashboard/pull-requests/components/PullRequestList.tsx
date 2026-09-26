@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import PullRequestCard from "./PullRequestCard";
-import { Search } from "lucide-react";
+import { Search, GitPullRequest } from "lucide-react";
 import { useDashboardData } from "../../context/DashboardDataContext";
 
 export default function PullRequestList() {
@@ -67,8 +67,22 @@ export default function PullRequestList() {
         {filteredPrs.length > 0 ? (
           filteredPrs.map((pr) => <PullRequestCard key={pr.id} pr={pr} />)
         ) : (
-          <div className="p-12 rounded-panel bg-[#111113] border border-white/[0.08] text-center text-sm text-[#8e8e8e]">
-            No pull requests matching your filter criteria.
+          <div className="p-12 rounded-panel bg-[#111113] border border-white/[0.08] text-center space-y-3">
+            <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[#8e8e8e] mx-auto">
+              <GitPullRequest className="w-6 h-6" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-sm font-semibold text-white">
+                {pullRequests.length === 0
+                  ? "No Autonomous Pull Requests Active"
+                  : "No Pull Requests Found"}
+              </h3>
+              <p className="text-xs text-[#8e8e8e] max-w-md mx-auto leading-relaxed">
+                {pullRequests.length === 0
+                  ? "Autonomous pull requests will appear here when remediation patches or agent workflows execute against repositories. Note: current backend endpoints only inspect specific known PR numbers (POST /pull-requests/details); a general repository PR listing endpoint is pending on the backend."
+                  : "No pull requests match the selected search or status filter criteria."}
+              </p>
+            </div>
           </div>
         )}
       </div>
