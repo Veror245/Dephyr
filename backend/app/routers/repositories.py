@@ -95,7 +95,11 @@ from fastapi import APIRouter, Request
 
 @router.post('/scan', status_code=200)
 async def scan(body: ScanRequest, request: Request):
-    """Clone a GitHub repository temporarily and forward its local path to Rust."""
+    """Clone a GitHub repository temporarily and forward its local path to Rust.
+
+    Rust must run on the same host or have the temporary directory mounted
+    at the identical path. Returns Rust's JSON with total_function_call calculated.
+    """
     clean_repo = require_repo(body.repo)
     async with temporary_clone(clean_repo) as root:
         result = await RustClient(request.app.state.http).scan(
@@ -103,6 +107,11 @@ async def scan(body: ScanRequest, request: Request):
             package=body.package,
             version=body.version,
         )
+        if isinstance(result, dict) and 'total_function_call' not in result:
+            res_list = result.get('res', [])
+            result['total_function_call'] = sum(
+                f.get('total_calls', len(f.get('calls', []))) for f in res_list
+            )
         print('Rust Engine Response:', result, flush=True)
 
         # --- NEW: Dispatch the Dephyr Agent Asynchronously ---
@@ -135,5 +144,6 @@ async def scan_callback(payload: RustScanResponse, job_id: str | None = None):
         'files_scanned': len(payload.res),
         'total_imports': payload.total_imports,
         'total_calls': payload.total_calls,
+        'total_function_call': payload.total_function_call,
         'summary': summary
     }

@@ -354,16 +354,16 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
         const primaryCall = primaryCallObj
           ? `${primaryCallObj.function}${primaryCallObj.attribute ? "." + primaryCallObj.attribute : ""}()`
           : total_function_call > 0
-          ? "dynamic call site"
-          : undefined;
+            ? "dynamic call site"
+            : undefined;
 
         const primaryImpObj = primaryFile?.imports?.[0];
         const primaryImport = primaryImpObj
           ? `${primaryImpObj.module}${primaryImpObj.name ? "." + primaryImpObj.name : ""}`
           : packageName
-          ? `${packageName} import`
-          : "package symbol";
-        
+            ? `${packageName} import`
+            : "package symbol";
+
         const scanVulnId = `vuln-scan-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
         const scanCveId = packageName
           ? `AST-${packageName.toUpperCase().replace(/[^A-Z0-9]/g, "-")}`
@@ -421,12 +421,12 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
               setRepositories((prev) =>
                 prev.map((r) =>
                   r.org.toLowerCase() === org.toLowerCase() &&
-                  r.name.toLowerCase() === name.toLowerCase()
+                    r.name.toLowerCase() === name.toLowerCase()
                     ? {
-                        ...r,
-                        defaultBranch: meta.default_branch || r.defaultBranch,
-                        url: meta.html_url || r.url,
-                      }
+                      ...r,
+                      defaultBranch: meta.default_branch || r.defaultBranch,
+                      url: meta.html_url || r.url,
+                    }
                     : r
                 )
               );

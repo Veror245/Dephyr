@@ -15,6 +15,7 @@ pub struct ScanReq {
 #[derive(Serialize)]
 pub struct Resp {
     pub res: Vec<ScanRes>,
+    pub total_function_call: usize,
 }
 
 pub fn router() -> Router {
@@ -31,5 +32,10 @@ async fn scan_handler(Json(req): Json<ScanReq>) -> Json<Resp> {
         .await
         .expect("scan task panicked");
 
-    Json(Resp { res: result })
+    let total_function_call = result.iter().map(|r| r.total_calls).sum();
+
+    Json(Resp {
+        res: result,
+        total_function_call,
+    })
 }
