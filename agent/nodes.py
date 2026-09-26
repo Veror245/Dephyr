@@ -1,5 +1,4 @@
 import json
-from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
 from langgraph.prebuilt import ToolNode
 
@@ -65,8 +64,8 @@ dynamic_prompt = ChatPromptTemplate.from_messages([
         "  Step 3. If CI failed, call `get_ci_logs`. If CI passed, STOP and summarize.\n"
         "  Step 4. If you got logs, call `apply_followup_patch` to fix the code.\n"
     )),
-    ("human", "Begin or continue the remediation process. What is your EXACT next step?"),
-    ("placeholder", "{messages}")
+    ("placeholder", "{messages}"),
+    ("human", "Review the history above. If the CI passed, STOP and summarize. Otherwise, what is your EXACT next step? ONLY call one tool.")
 ])
 
 dynamic_chain = dynamic_prompt | ollama_llm.bind_tools(agent_tools)

@@ -13,7 +13,7 @@ logger = logging.getLogger("dephyr.agent")
 BACKEND_BASE_URL = os.getenv("DEPHYR_BACKEND_URL", "http://localhost:8000").rstrip("/")
 API_KEY = os.getenv("DEPHYR_API_KEY", "")
 BACKEND_TIMEOUT_S = float(os.getenv("DEPHYR_BACKEND_TIMEOUT_S", "30"))
-MOCK_MODE = os.getenv("DEPHYR_MOCK_MODE", "true").lower() == "true"
+MOCK_MODE = os.getenv("DEPHYR_MOCK_MODE", "false").lower() == "true"
 
 def _get_headers() -> dict:
     return {"X-API-Key": API_KEY} if API_KEY else {}
