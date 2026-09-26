@@ -10,17 +10,17 @@ async fn main() {
     // let queries = analysis::Queries::default();
 
     let path = Path::new("/mnt/shared/projects/ResearchForge");
-    // let dep = deps::dependency_info(path, "dotenv");
-    //
-    // println!("{:?}", dep);
+    let dep = deps::dependency_info(path, "langgraph");
+
+    println!("{:?}", dep);
     //
     // let files = walker::walk_dir(path);
-    // println!("{:?}",files);
-    //
+    // println!("{:?}", files);
+
     //
 
     let str = Instant::now();
-    let res = scanner::scan(path, "fastapi");
+    let res = scanner::scan(path, "langchain");
     println!("{:?}", res);
     println!("Elapsed: {}", str.elapsed().as_secs_f64());
 

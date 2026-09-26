@@ -34,7 +34,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Backend API Connection & Diagnostics */}
-      <BackendConnectionCard />
+      {/* <BackendConnectionCard /> */}
 
       {/* Safety Policy Form: Floating rounded panel */}
       <PolicySettingsForm />

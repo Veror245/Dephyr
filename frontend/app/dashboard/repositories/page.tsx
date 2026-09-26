@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import RepositoryTable from "./components/RepositoryTable";
 import RepositoryDetailDrawer from "./components/RepositoryDetailDrawer";
 import DashboardModal from "../components/DashboardModal";
@@ -15,47 +15,65 @@ export default function RepositoriesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [liveConnected, setLiveConnected] = useState(false);
+  const fetchedReposRef = useRef<Set<string>>(new Set());
 
-  const fetchMetadata = useCallback(async () => {
-    setLoading(true);
-    let anySuccess = false;
-    await Promise.all(
-      repositories.map(async (r) => {
-        if (r.org === "dephyr-demo") return;
-        try {
-          const meta = await api.repositories.getMetadata({ repo: `${r.org}/${r.name}` });
-          if (meta) {
-            anySuccess = true;
-            updateRepository(r.id, {
-              defaultBranch: meta.default_branch || r.defaultBranch,
-              url: meta.html_url || r.url,
-            });
+  const fetchMetadata = useCallback(
+    async (force = false) => {
+      const reposToFetch = repositories.filter(
+        (r) => r.org !== "dephyr-demo" && (force || !fetchedReposRef.current.has(r.id))
+      );
+
+      if (reposToFetch.length === 0) return;
+
+      setLoading(true);
+      let anySuccess = false;
+
+      // Mark as requested immediately to prevent concurrent duplicate calls
+      reposToFetch.forEach((r) => fetchedReposRef.current.add(r.id));
+
+      await Promise.all(
+        reposToFetch.map(async (r) => {
+          try {
+            const meta = await api.repositories.getMetadata({ repo: `${r.org}/${r.name}` });
+            if (meta) {
+              anySuccess = true;
+              updateRepository(r.id, {
+                defaultBranch: meta.default_branch || r.defaultBranch,
+                url: meta.html_url || r.url,
+              });
+            }
+          } catch {
+            // If GitHub token isn't configured on backend, keep existing fields
           }
-        } catch {
-          // If GitHub token isn't configured on backend, keep existing fields
-        }
-      })
-    );
-    setLiveConnected(anySuccess);
-    setLoading(false);
-  }, [repositories, updateRepository]);
+        })
+      );
+      setLiveConnected(anySuccess);
+      setLoading(false);
+    },
+    [repositories, updateRepository]
+  );
 
   useEffect(() => {
-    fetchMetadata();
+    fetchMetadata(false);
   }, [fetchMetadata]);
 
-  const handleSelectRepo = (repo: RepositoryRecord) => {
+  const handleManualRefresh = useCallback(() => {
+    fetchedReposRef.current.clear();
+    fetchMetadata(true);
+  }, [fetchMetadata]);
+
+  const handleSelectRepo = useCallback((repo: RepositoryRecord) => {
     setSelectedRepo(repo);
     setIsModalOpen(true);
-  };
+  }, []);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setIsModalOpen(false);
-  };
+  }, []);
 
-  const handleModalExited = () => {
+  const handleModalExited = useCallback(() => {
     setSelectedRepo(null);
-  };
+  }, []);
 
   return (
     <div className="space-y-6 w-full">
@@ -94,7 +112,7 @@ export default function RepositoriesPage() {
           selectedRepoId={selectedRepo?.id}
           repositories={repositories}
           loading={loading}
-          onRefresh={fetchMetadata}
+          onRefresh={handleManualRefresh}
           liveConnected={liveConnected}
         />
       </div>

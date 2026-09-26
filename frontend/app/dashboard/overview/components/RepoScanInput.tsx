@@ -144,7 +144,16 @@ export default function RepoScanInput() {
 
       {/* Demo Scenario Quick-picks */}
       <div className="mt-6 pt-4 border-t border-white/[0.06] flex flex-wrap items-center gap-3 text-xs">
-        <span className="text-xs text-[#8e8e8e]">Quick demo targets:</span>
+        <span className="text-xs text-[#8e8e8e]">Quick scan targets:</span>
+        <button
+          type="button"
+          onClick={() => handleQuickDemo("Veror245/FlareWatch")}
+          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-pill bg-[#1c1c20] hover:bg-[#28282a] border border-[#52e185]/30 text-xs text-[#52e185] hover:text-white transition-colors"
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-[#52e185]" />
+          <span>Veror245/FlareWatch</span>
+          <span className="text-[11px] font-mono text-[#8e8e8e]">(Live Repo)</span>
+        </button>
         <button
           type="button"
           onClick={() => handleQuickDemo("dephyr-demo/repo-c")}
@@ -161,14 +170,6 @@ export default function RepoScanInput() {
         >
           <span className="w-1.5 h-1.5 rounded-full bg-[#ffb300]" />
           <span>dephyr-demo/gateway-proxy</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => handleQuickDemo("dephyr-demo/repo-a")}
-          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-pill bg-[#1c1c20] hover:bg-[#28282a] border border-white/[0.08] text-xs text-[#c8c8c8] hover:text-white transition-colors"
-        >
-          <span className="w-1.5 h-1.5 rounded-full bg-[#52e185]" />
-          <span>dephyr-demo/repo-a (Safe)</span>
         </button>
       </div>
     </div>

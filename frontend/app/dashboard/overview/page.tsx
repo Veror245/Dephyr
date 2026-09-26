@@ -18,7 +18,7 @@ export default function OverviewPage() {
   const [healthLoading, setHealthLoading] = useState(true);
   const [backendOnline, setBackendOnline] = useState(false);
   const [metadataError, setMetadataError] = useState<string | null>(null);
-  const fetchedRef = useRef(false);
+  const fetchedReposRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     // 1. Verify health status from GET /health
@@ -35,37 +35,39 @@ export default function OverviewPage() {
       .finally(() => {
         setHealthLoading(false);
       });
-
-    // Guard against duplicate network calls during React StrictMode initial mount
-    if (fetchedRef.current) return;
-    fetchedRef.current = true;
-
-    // 2. Fetch metadata for real monitored repos (skip fictional mock demo repos)
-    const reposToFetch = repositories.filter((r) => r.org !== "dephyr-demo");
-    if (reposToFetch.length > 0) {
-      Promise.allSettled(
-        reposToFetch.map((r) => api.repositories.getMetadata({ repo: `${r.org}/${r.name}` }))
-      ).then((results) => {
-        const failed = results.find((r) => r.status === "rejected");
-        if (failed && failed.status === "rejected") {
-          const msg = failed.reason instanceof Error ? failed.reason.message : "GitHub metadata service unavailable";
-          setMetadataError(msg);
-        } else {
-          setMetadataError(null);
-        }
-
-        results.forEach((res, idx) => {
-          if (res.status === "fulfilled" && res.value) {
-            const target = reposToFetch[idx];
-            updateRepository(target.id, {
-              defaultBranch: res.value.default_branch || target.defaultBranch,
-              url: res.value.html_url || target.url,
-            });
-          }
-        });
-      });
-    }
   }, []);
+
+  useEffect(() => {
+    // 2. Fetch metadata for newly monitored repos that haven't been fetched yet
+    const reposToFetch = repositories.filter(
+      (r) => r.org !== "dephyr-demo" && !fetchedReposRef.current.has(r.id)
+    );
+    if (reposToFetch.length === 0) return;
+
+    reposToFetch.forEach((r) => fetchedReposRef.current.add(r.id));
+
+    Promise.allSettled(
+      reposToFetch.map((r) => api.repositories.getMetadata({ repo: `${r.org}/${r.name}` }))
+    ).then((results) => {
+      const failed = results.find((r) => r.status === "rejected");
+      if (failed && failed.status === "rejected") {
+        const msg = failed.reason instanceof Error ? failed.reason.message : "GitHub metadata service unavailable";
+        setMetadataError(msg);
+      } else {
+        setMetadataError(null);
+      }
+
+      results.forEach((res, idx) => {
+        if (res.status === "fulfilled" && res.value) {
+          const target = reposToFetch[idx];
+          updateRepository(target.id, {
+            defaultBranch: res.value.default_branch || target.defaultBranch,
+            url: res.value.html_url || target.url,
+          });
+        }
+      });
+    });
+  }, [repositories, updateRepository]);
 
   return (
     <div className="space-y-6 w-full">

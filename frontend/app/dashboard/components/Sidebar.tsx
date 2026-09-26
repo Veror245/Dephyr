@@ -44,17 +44,10 @@ export default function Sidebar({
       icon: LayoutDashboard,
     },
     {
-      href: "/dashboard/cve-feed",
-      label: "CVE Feed",
-      icon: ShieldAlert,
-      badge: stats.cveCount,
-      badgeColor: "amber" as const,
-    },
-    {
       href: "/dashboard/repositories",
       label: "Repositories",
       icon: GitBranch,
-      badge: stats.monitoredRepos,
+      badge: stats.monitoredRepos > 0 ? stats.monitoredRepos : undefined,
       badgeColor: "neutral" as const,
     },
     {
@@ -68,7 +61,7 @@ export default function Sidebar({
       href: "/dashboard/pull-requests",
       label: "Pull Requests",
       icon: GitPullRequest,
-      badge: stats.prCount,
+      badge: stats.prCount > 0 ? stats.prCount : undefined,
       badgeColor: "neutral" as const,
     },
     {
@@ -124,15 +117,13 @@ export default function Sidebar({
 
       {/* Main Sidebar Panel - Inset floating rounded panel on desktop */}
       <aside
-        className={`fixed z-50 w-64 bg-[#0a0a0c] flex flex-col transition-all duration-300 ease-in-out overflow-hidden lg:top-6 lg:bottom-6 lg:left-6 lg:rounded-panel lg:border lg:border-white/[0.08] lg:shadow-card ${
-          isHidden
+        className={`fixed z-50 w-64 bg-[#0a0a0c] flex flex-col transition-all duration-300 ease-in-out overflow-hidden lg:top-6 lg:bottom-6 lg:left-6 lg:rounded-panel lg:border lg:border-white/[0.08] lg:shadow-card ${isHidden
             ? "lg:-translate-x-[120%] lg:opacity-0 pointer-events-none"
             : "lg:translate-x-0 lg:opacity-100 pointer-events-auto"
-        } ${
-          isOpen
+          } ${isOpen
             ? "top-0 bottom-0 left-0 border-r border-white/[0.08] translate-x-0"
             : "top-0 bottom-0 left-0 border-r border-white/[0.08] -translate-x-full"
-        }`}
+          }`}
       >
         {/* Top Logo Header */}
         <div className="h-16 px-5 border-b border-white/[0.06] flex items-center justify-between shrink-0">
