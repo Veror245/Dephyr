@@ -1,5 +1,5 @@
 from typing import Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 class Patch(BaseModel):
     path: str
@@ -54,17 +54,35 @@ class FileScanResult(BaseModel):
     file: str
     imports: list[ImportFinding] = Field(default_factory=list)
     calls: list[CallFinding] = Field(default_factory=list)
+    total_imports: int = 0
+    total_calls: int = 0
+
+    @model_validator(mode='after')
+    def compute_file_totals(self):
+        if not self.total_imports:
+            self.total_imports = len(self.imports)
+        if not self.total_calls:
+            self.total_calls = len(self.calls)
+        return self
 
 class RustScanResponse(BaseModel):
     res: list[FileScanResult] = Field(default_factory=list)
+    total_function_call: int = 0
+
+    @model_validator(mode='after')
+    def compute_total_function_call(self):
+        calculated = sum(f.total_calls for f in self.res)
+        if not self.total_function_call or self.total_function_call != calculated:
+            self.total_function_call = calculated
+        return self
 
     @property
     def total_imports(self) -> int:
-        return sum(len(f.imports) for f in self.res)
+        return sum(f.total_imports for f in self.res)
 
     @property
     def total_calls(self) -> int:
-        return sum(len(f.calls) for f in self.res)
+        return self.total_function_call
 
     @property
     def call_sites(self) -> list[str]:
@@ -76,12 +94,13 @@ class RustScanResponse(BaseModel):
 
     def to_summary(self) -> dict[str, Any]:
         total_imp = self.total_imports
-        total_cl = self.total_calls
+        total_cl = self.total_function_call
         return {
             'res': [f.model_dump() for f in self.res],
             'package_found': total_imp > 0 or total_cl > 0,
             'imports': total_imp,
             'vulnerable_calls': total_cl,
+            'total_function_call': total_cl,
             'call_sites': self.call_sites,
             'analysis_complete': True,
         }

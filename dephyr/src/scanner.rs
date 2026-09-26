@@ -8,12 +8,12 @@ use std::{io::Read, path::Path};
 
 #[derive(Default, Debug, serde::Serialize)]
 pub struct ScanRes {
-    file: String,
-    imports: Vec<ImportFinding>,
-    total_imports: usize,
-    calls: Vec<CallFinding>,
-    total_calls: usize,
-    exposure_level: u8,
+    pub file: String,
+    pub imports: Vec<ImportFinding>,
+    pub total_imports: usize,
+    pub calls: Vec<CallFinding>,
+    pub total_calls: usize,
+    pub exposure_level: u8,
 }
 
 // pub fn scan(path: &Path, import: &str) -> Vec<ScanRes> {

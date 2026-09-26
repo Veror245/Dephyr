@@ -177,10 +177,12 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
 
       const findingsList = Array.isArray(scanResult?.res) ? scanResult.res : [];
       const totalCalls =
-        findingsList.reduce((acc: number, f: any) => acc + (f.calls?.length || 0), 0) +
-        (scanResult?.total_calls || 0);
+        scanResult?.total_function_call ??
+        (findingsList.reduce((acc: number, f: any) => acc + (f.calls?.length || f.total_calls || 0), 0) +
+        (scanResult?.total_calls || 0));
+      const totalFunctionCalls = scanResult?.total_function_call ?? totalCalls;
       const totalImports =
-        findingsList.reduce((acc: number, f: any) => acc + (f.imports?.length || 0), 0) +
+        findingsList.reduce((acc: number, f: any) => acc + (f.imports?.length || f.total_imports || 0), 0) +
         (scanResult?.total_imports || 0);
       const filesScanned = scanResult?.files_scanned || findingsList.length;
 
@@ -192,7 +194,7 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
       if (totalCalls > 0) {
         risk = "CRITICAL";
         activeExposures = 1;
-        remediationStatus = `Action Required: ${totalCalls} active call site${totalCalls > 1 ? "s" : ""} detected`;
+        remediationStatus = `Action Required: ${totalCalls} active call site${totalCalls > 1 ? "s" : ""} detected (${totalFunctionCalls} total function calls across files)`;
         affectedCves = [packageName ? `${packageName} AST Taint` : "AST Taint Detected"];
       } else if (totalImports > 0 || findingsList.length > 0) {
         risk = "MEDIUM";
@@ -273,8 +275,8 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
         repo: cleanName,
         badge: "STATIC",
         badgeType: risk === "CRITICAL" ? "warn" : risk === "MEDIUM" ? "info" : "success",
-        text: `AST scan complete: ${filesScanned} file${filesScanned === 1 ? "" : "s"} scanned, ${totalImports} imports, ${totalCalls} active call sites`,
-        detail: scanResult ? JSON.stringify(scanResult) : undefined,
+        text: `AST scan complete: ${filesScanned} file${filesScanned === 1 ? "" : "s"} scanned, ${totalImports} imports, ${totalFunctionCalls} total function calls across files`,
+        detail: scanResult ? JSON.stringify({ ...scanResult, total_function_call: totalFunctionCalls }) : undefined,
       };
 
       setAgentEvents((prev) => [newEvent, ...prev]);
