@@ -88,13 +88,14 @@ async def metadata(body: RepoRef, request: Request):
         'html_url': data.get('html_url', f'https://github.com/{clean_repo}')
     }
 
+import httpx
+import asyncio
+from fastapi import APIRouter, Request
+# ... (keep your existing imports) ...
+
 @router.post('/scan', status_code=200)
 async def scan(body: ScanRequest, request: Request):
-    """Clone a GitHub repository temporarily and forward its local path to Rust.
-
-    Rust must run on the same host or have the temporary directory mounted
-    at the identical path. This endpoint returns Rust's JSON without altering it.
-    """
+    """Clone a GitHub repository temporarily and forward its local path to Rust."""
     clean_repo = require_repo(body.repo)
     async with temporary_clone(clean_repo) as root:
         result = await RustClient(request.app.state.http).scan(
@@ -103,6 +104,24 @@ async def scan(body: ScanRequest, request: Request):
             version=body.version,
         )
         print('Rust Engine Response:', result, flush=True)
+
+        # --- NEW: Dispatch the Dephyr Agent Asynchronously ---
+        async def dispatch_agent():
+            try:
+                async with httpx.AsyncClient() as client:
+                    await client.post("http://127.0.0.1:8001/trigger", json={
+                        "repo_name": clean_repo,
+                        "cve_id": body.cve_id,
+                        "package_name": body.package or "unknown",
+                        "vulnerable_symbol": body.vulnerable_symbol
+                    }, timeout=5.0)
+            except Exception as e:
+                print(f"Failed to dispatch agent: {e}")
+
+        # Fire and forget: triggers the agent loop in the background
+        asyncio.create_task(dispatch_agent())
+        # -----------------------------------------------------
+
         return result
 
 @router.post('/scan/callback', status_code=200)

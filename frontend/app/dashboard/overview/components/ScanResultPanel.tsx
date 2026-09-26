@@ -30,20 +30,23 @@ export default function ScanResultPanel({
 
   const resultVulnerabilities: VulnerabilityRecord[] = isSafe
     ? []
-    : (currentRepo?.affectedCves || []).map((cveName, idx) => ({
-        id: `${cleanRepoName.replace(/[^a-z0-9_-]/g, "-")}-vuln-${idx}`,
-        cveId: cveName,
-        package: currentRepo?.name || "Target Module",
-        affectedVersions: "AST Reachable",
-        fixedVersion: "Upgrade dependency or patch AST call site",
-        severity: (currentRepo?.risk === "CRITICAL" ? "CRITICAL" : "MEDIUM") as VulnerabilityRecord["severity"],
-        cvss: currentRepo?.risk === "CRITICAL" ? 8.5 : 5.0,
-        exposureLevel: (currentRepo?.risk === "CRITICAL" ? 2 : 1) as 0 | 1 | 2 | 3,
-        status: "INVESTIGATING" as const,
-        detectedAt: currentRepo?.lastScanned || "Just now",
-        summary: `Vulnerability exposure detected in ${cleanRepoName}: ${currentRepo?.remediationStatus}`,
-        description: `Analysis completed on ${currentRepo?.defaultBranch || "main"} branch. ${currentRepo?.remediationStatus}`,
-      }));
+    : (currentRepo?.affectedCves || []).map((cveName, idx) => {
+        const cleanPkg = cveName.replace(/\s*\((Uncalled|Called|Actively Called)\)/gi, "").trim();
+        return {
+          id: `${cleanRepoName.replace(/[^a-z0-9_-]/g, "-")}-vuln-${idx}`,
+          cveId: cleanPkg,
+          package: currentRepo?.name || "Target Module",
+          affectedVersions: "AST Reachable",
+          fixedVersion: "Upgrade dependency or patch AST call site",
+          severity: (currentRepo?.risk === "CRITICAL" ? "CRITICAL" : "MEDIUM") as VulnerabilityRecord["severity"],
+          cvss: currentRepo?.risk === "CRITICAL" ? 8.5 : 5.0,
+          exposureLevel: (currentRepo?.risk === "CRITICAL" ? 2 : 1) as 0 | 1 | 2 | 3,
+          status: "INVESTIGATING" as const,
+          detectedAt: currentRepo?.lastScanned || "Just now",
+          summary: `Vulnerability exposure detected in ${cleanRepoName}: ${currentRepo?.remediationStatus}`,
+          description: `Analysis completed on ${currentRepo?.defaultBranch || "main"} branch. ${currentRepo?.remediationStatus}`,
+        };
+      });
 
   return (
     <div className="w-full rounded-panel bg-[#121214] border border-white/[0.12] p-7 lg:p-8 shadow-2xl animate-in fade-in duration-300 space-y-6">

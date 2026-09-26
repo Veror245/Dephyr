@@ -146,7 +146,10 @@ export default function RepositoryTable({
                   <td className="py-4 px-5 font-mono text-xs">
                     {repo.affectedCves.length > 0 ? (
                       <span className="text-[#ff7300]">
-                        {repo.affectedCves.join(", ")}
+                        {repo.affectedCves
+                          .map((cve) => cve.replace(/\s*\((Uncalled|Called|Actively Called)\)/gi, "").trim())
+                          .filter(Boolean)
+                          .join(", ")}
                       </span>
                     ) : (
                       <span className="text-[#8e8e8e]">—</span>

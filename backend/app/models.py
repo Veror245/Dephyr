@@ -17,10 +17,15 @@ class Event(BaseModel):
 class RepoRef(BaseModel):
     repo: str
 
+from pydantic import BaseModel
+
 class ScanRequest(BaseModel):
-    repo: str = Field(min_length=1)
-    package: str = Field(default="")
-    version: str | None = None  
+    repo: str
+    package: str = ""
+    version: str = ""
+    # Add these two fields to satisfy the AgentPayload
+    cve_id: str = "UNKNOWN-CVE"
+    vulnerable_symbol: str = "unknown"  
     
 class RemediationRequest(BaseModel):
     repo: str

@@ -166,7 +166,9 @@ export default function RepositoryDetailDrawer({
                 key={cve}
                 className="flex items-center justify-between p-3 rounded-control bg-[#0c0c0e] border border-white/[0.06] text-xs font-mono"
               >
-                <span className="text-[#ff5252] font-bold text-xs">{cve}</span>
+                <span className="text-[#ff5252] font-bold text-xs">
+                  {cve.replace(/\s*\((Uncalled|Called|Actively Called)\)/gi, "").trim()}
+                </span>
                 <Link
                   href="/dashboard/cve-feed"
                   className="text-xs text-[#8e8e8e] hover:text-white transition-colors"

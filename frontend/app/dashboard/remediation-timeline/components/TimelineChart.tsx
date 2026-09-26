@@ -1,224 +1,198 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { useDashboardData } from "../../context/DashboardDataContext";
-import { FileScanResult } from "@/app/lib/api";
-import { Loader2, RefreshCw, AlertCircle, Info, Calendar, Code2, ShieldAlert } from "lucide-react";
+import { useDashboardData, ScanTelemetryRecord } from "../../context/DashboardDataContext";
+import { computeTotalFunctionCalls, FileScanResult } from "@/app/lib/api";
+import { RepositoryRecord, PullRequestRecord } from "../../lib/mock-data";
+import {
+  BarChart3,
+  TrendingUp,
+  GitBranch,
+  ShieldAlert,
+  Info,
+  ArrowRight,
+} from "lucide-react";
+import Link from "next/link";
 
-type TimeRangeKey = "7D" | "30D" | "90D" | "6M" | "1Y";
+type ChartMode = "bars" | "line";
 
-export interface TimelineDataPoint {
-  dateKey: string;
-  label: string;
-  detected: number; // Vulnerabilities disclosed on this date from NIST NVD
-  cveIds: string[];
-  total_function_call: number; // Real client-side sum of total_calls across files scanned on this date
-  scanCount: number;
-  files: FileScanResult[]; // Per-file array with each file's total_calls breakdown
-  scanRepos: string[];
+export interface RepoComparisonPoint {
+  id: string;
+  repo: string;
+  displayName: string;
+  vulnerabilities: number; // Real client-side summed total_function_call
+  patches: number; // Real count of pull requests
+  files: FileScanResult[]; // Real per-file breakdown
+  scanIndex: number;
 }
 
-export default function TimelineChart() {
-  const { cves, loadingCves, cveError, refreshCves, scanHistory, repositories } = useDashboardData();
-  const [selectedRange, setSelectedRange] = useState<TimeRangeKey>("7D");
+export interface TimelineChartProps {
+  scanHistory?: ScanTelemetryRecord[];
+  repositories?: RepositoryRecord[];
+  pullRequests?: PullRequestRecord[];
+}
+
+export default function TimelineChart({
+  scanHistory: propScanHistory,
+  repositories: propRepositories,
+  pullRequests: propPullRequests,
+}: TimelineChartProps = {}) {
+  const contextData = useDashboardData();
+  const scanHistory = propScanHistory ?? contextData.scanHistory;
+  const repositories = propRepositories ?? contextData.repositories;
+  const pullRequests = propPullRequests ?? contextData.pullRequests;
+
+  const [chartMode, setChartMode] = useState<ChartMode>("bars");
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
-  // Group real CVE records and scan telemetry into continuous calendar day buckets
-  const chartData = useMemo<TimelineDataPoint[]>(() => {
-    // 1. Parse CVE dates from cves
-    const parsedCves: { cveId: string; date: Date; dateKey: string }[] = [];
-    for (const c of cves || []) {
-      const raw =
-        c.publishedAt ||
-        (c.detectedAt && c.detectedAt !== "Recently disclosed"
-          ? c.detectedAt
-          : null);
-      if (!raw) continue;
-      const d = new Date(raw);
-      if (isNaN(d.getTime())) continue;
+  // Group real scan telemetry indexed by scanned repository (non-date axis)
+  const chartData = useMemo<RepoComparisonPoint[]>(() => {
+    const points: RepoComparisonPoint[] = [];
+    const seenRepos = new Set<string>();
 
-      const yyyy = d.getFullYear();
-      const mm = String(d.getMonth() + 1).padStart(2, "0");
-      const dd = String(d.getDate()).padStart(2, "0");
-      const dateKey = `${yyyy}-${mm}-${dd}`;
-      parsedCves.push({ cveId: c.cveId, date: d, dateKey });
-    }
+    // Collect from scanHistory in chronological order
+    const chronologicalHistory = [...(scanHistory || [])].reverse();
+    for (const scan of chronologicalHistory) {
+      const cleanRepo = scan.repo;
+      const lower = cleanRepo.toLowerCase();
 
-    // 2. Parse Scan dates and per-file total_function_call from scanHistory
-    const parsedScans: {
-      date: Date;
-      dateKey: string;
-      repo: string;
-      files: FileScanResult[];
-      total_function_call: number;
-    }[] = [];
+      // Aggregate total_calls across per-file array using client-side reduction
+      const aggregatedCalls =
+        Array.isArray(scan.files) && scan.files.length > 0
+          ? computeTotalFunctionCalls(scan.files)
+          : (scan.total_function_call ?? 0);
 
-    // Collect from scanHistory
-    for (const s of scanHistory || []) {
-      const d = new Date(s.timestamp || s.dateKey);
-      if (isNaN(d.getTime())) continue;
-      parsedScans.push({
-        date: d,
-        dateKey: s.dateKey,
-        repo: s.repo,
-        files: s.files || [],
-        total_function_call: s.total_function_call || 0,
-      });
-    }
+      if (seenRepos.has(lower)) {
+        const existing = points.find((p) => p.repo.toLowerCase() === lower);
+        if (existing) {
+          existing.vulnerabilities = aggregatedCalls;
+          existing.files = scan.files || [];
+        }
+        continue;
+      }
+      seenRepos.add(lower);
 
-    // Also collect from repositories if a repo has files/total_function_call not yet in scanHistory
-    for (const r of repositories || []) {
-      if (r.files && r.files.length > 0) {
-        const alreadyInScans = parsedScans.some(
-          (s) => s.repo.toLowerCase() === `${r.org}/${r.name}`.toLowerCase() || s.repo.toLowerCase() === r.name.toLowerCase()
+      const parts = cleanRepo.split("/");
+      const displayName = parts.length > 1 ? parts[1] : cleanRepo;
+
+      // Real pull requests count for this repo from shared state
+      const repoPrs = (pullRequests || []).filter((pr) => {
+        const prRepoLower = pr.repo.toLowerCase();
+        return (
+          prRepoLower === lower ||
+          prRepoLower.endsWith("/" + lower) ||
+          lower.endsWith("/" + prRepoLower)
         );
-        if (!alreadyInScans) {
-          const now = new Date();
-          const yyyy = now.getFullYear();
-          const mm = String(now.getMonth() + 1).padStart(2, "0");
-          const dd = String(now.getDate()).padStart(2, "0");
-          parsedScans.push({
-            date: now,
-            dateKey: `${yyyy}-${mm}-${dd}`,
-            repo: `${r.org}/${r.name}`,
-            files: r.files,
-            total_function_call: r.total_function_call || 0,
-          });
-        }
-      }
-    }
+      }).length;
 
-    if (parsedCves.length === 0 && parsedScans.length === 0) return [];
-
-    // Collect all timestamps to find earliest and latest date bounds
-    const allTimestamps: number[] = [
-      ...parsedCves.map((c) => c.date.getTime()),
-      ...parsedScans.map((s) => s.date.getTime()),
-    ];
-
-    allTimestamps.sort((a, b) => a - b);
-    const earliest = new Date(allTimestamps[0]);
-    const latest = new Date(allTimestamps[allTimestamps.length - 1]);
-    earliest.setHours(0, 0, 0, 0);
-    latest.setHours(0, 0, 0, 0);
-
-    // Calculate span in days (minimum 7-day span ending on latest date)
-    const daySpan = Math.round(
-      (latest.getTime() - earliest.getTime()) / (1000 * 60 * 60 * 24)
-    );
-    const windowDays = Math.max(daySpan + 1, 7);
-
-    const buckets: TimelineDataPoint[] = [];
-    const anchorDate = new Date(latest);
-    const startDate = new Date(anchorDate);
-    startDate.setDate(startDate.getDate() - (windowDays - 1));
-
-    for (let i = 0; i < windowDays; i++) {
-      const curr = new Date(startDate);
-      curr.setDate(curr.getDate() + i);
-      const yyyy = curr.getFullYear();
-      const mm = String(curr.getMonth() + 1).padStart(2, "0");
-      const dd = String(curr.getDate()).padStart(2, "0");
-      const dateKey = `${yyyy}-${mm}-${dd}`;
-      const label = curr.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-      });
-
-      buckets.push({
-        dateKey,
-        label,
-        detected: 0,
-        cveIds: [],
-        total_function_call: 0,
-        scanCount: 0,
-        files: [],
-        scanRepos: [],
+      points.push({
+        id: scan.id,
+        repo: cleanRepo,
+        displayName,
+        vulnerabilities: aggregatedCalls,
+        patches: repoPrs,
+        files: scan.files || [],
+        scanIndex: points.length + 1,
       });
     }
 
-    // Accumulate real CVE counts
-    for (const item of parsedCves) {
-      const bucket = buckets.find((b) => b.dateKey === item.dateKey);
-      if (bucket) {
-        bucket.detected += 1;
-        bucket.cveIds.push(item.cveId);
+    // Also check repositories if loaded with scan data
+    for (const r of repositories || []) {
+      const cleanRepo = `${r.org}/${r.name}`;
+      const lower = cleanRepo.toLowerCase();
+      if (!seenRepos.has(lower) && (r.total_function_call !== undefined || (r.files && r.files.length > 0))) {
+        seenRepos.add(lower);
+        const aggregatedCalls =
+          Array.isArray(r.files) && r.files.length > 0
+            ? computeTotalFunctionCalls(r.files)
+            : (r.total_function_call ?? 0);
+
+        const repoPrs = (pullRequests || []).filter((pr) => {
+          const prRepoLower = pr.repo.toLowerCase();
+          return (
+            prRepoLower === lower ||
+            prRepoLower.endsWith("/" + lower) ||
+            lower.endsWith("/" + prRepoLower)
+          );
+        }).length;
+
+        points.push({
+          id: r.id,
+          repo: cleanRepo,
+          displayName: r.name,
+          vulnerabilities: aggregatedCalls,
+          patches: repoPrs,
+          files: r.files || [],
+          scanIndex: points.length + 1,
+        });
       }
     }
 
-    // Accumulate real per-file scan results and client-side total_function_call
-    for (const scan of parsedScans) {
-      const bucket = buckets.find((b) => b.dateKey === scan.dateKey);
-      if (bucket) {
-        bucket.total_function_call += scan.total_function_call;
-        bucket.scanCount += 1;
-        bucket.files.push(...scan.files);
-        if (!bucket.scanRepos.includes(scan.repo)) {
-          bucket.scanRepos.push(scan.repo);
-        }
-      }
-    }
+    return points;
+  }, [scanHistory, repositories, pullRequests]);
 
-    return buckets;
-  }, [cves, scanHistory, repositories]);
+  // Overall aggregates
+  const totalVulnerabilities = useMemo(() => {
+    return chartData.reduce((acc, d) => acc + d.vulnerabilities, 0);
+  }, [chartData]);
 
-  // Overall totals across the active timeline
-  const totalCallsAnalyzed = useMemo(() => {
-    return chartData.reduce((acc, d) => acc + d.total_function_call, 0);
+  const totalPatches = useMemo(() => {
+    return chartData.reduce((acc, d) => acc + d.patches, 0);
   }, [chartData]);
 
   // SVG Chart Geometry Calculations
   const width = 1000;
-  const height = 280;
-  const paddingX = 55;
-  const paddingY = 40;
+  const height = 300;
+  const paddingX = 65;
+  const paddingY = 45;
 
-  // Maximum value across BOTH series (vulnerabilities detected + total function calls analyzed)
   const maxVal = Math.max(
-    ...chartData.flatMap((d) => [d.detected, d.total_function_call]),
+    ...chartData.flatMap((d) => [d.vulnerabilities, d.patches]),
     0
   );
-  // Integer ceiling with headroom so vertices don't clip top SVG border
   const yMax = Math.max(Math.ceil(maxVal * 1.25), 4);
 
-  const getX = (idx: number) => {
+  const getY = (val: number) =>
+    height - paddingY - (val / yMax) * (height - paddingY * 2);
+
+  // Geometry for Line Chart Mode
+  const getLineX = (idx: number) => {
     if (chartData.length <= 1) {
       return paddingX + (width - paddingX * 2) / 2;
     }
     return paddingX + (idx / (chartData.length - 1)) * (width - paddingX * 2);
   };
 
-  const getY = (val: number) =>
-    height - paddingY - (val / yMax) * (height - paddingY * 2);
-
-  // Map to discrete SVG coordinates for both series
-  const points = chartData.map((d, i) => ({
-    x: getX(i),
-    yDetected: getY(d.detected),
-    yCalls: getY(d.total_function_call),
+  const linePoints = chartData.map((d, i) => ({
+    x: getLineX(i),
+    yVulns: getY(d.vulnerabilities),
+    yPatches: getY(d.patches),
     data: d,
   }));
 
-  // Series 1: Vulnerabilities Detected (Amber line)
-  const detectedLine =
-    points.length > 0
-      ? points
-          .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(1)},${p.yDetected.toFixed(1)}`)
+  const vulnsLine =
+    linePoints.length > 1
+      ? linePoints
+          .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(1)},${p.yVulns.toFixed(1)}`)
           .join(" ")
+      : linePoints.length === 1
+      ? `M ${(linePoints[0].x - 60).toFixed(1)},${linePoints[0].yVulns.toFixed(1)} L ${(linePoints[0].x + 60).toFixed(1)},${linePoints[0].yVulns.toFixed(1)}`
       : "";
 
-  // Series 2: Total Function Calls Analyzed (Cyan line)
-  const callsLine =
-    points.length > 0
-      ? points
-          .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(1)},${p.yCalls.toFixed(1)}`)
+  const patchesLine =
+    linePoints.length > 1
+      ? linePoints
+          .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(1)},${p.yPatches.toFixed(1)}`)
           .join(" ")
+      : linePoints.length === 1
+      ? `M ${(linePoints[0].x - 60).toFixed(1)},${linePoints[0].yPatches.toFixed(1)} L ${(linePoints[0].x + 60).toFixed(1)},${linePoints[0].yPatches.toFixed(1)}`
       : "";
 
-  const activeHoverItem = hoveredIndex !== null ? chartData[hoveredIndex] : null;
-  const activeHoverPoint = hoveredIndex !== null ? points[hoveredIndex] : null;
+  // Geometry for Grouped Bar Chart Mode
+  const slotWidth = chartData.length > 0 ? (width - paddingX * 2) / chartData.length : 0;
+  const barWidth = Math.min(Math.max(slotWidth * 0.22, 16), 40);
+  const barGap = 6;
 
-  // Y-axis tick values (4 steps)
   const yTicks = [
     0,
     Math.round(yMax * 0.33),
@@ -226,342 +200,453 @@ export default function TimelineChart() {
     yMax,
   ];
 
+  const activeHoverItem = hoveredIndex !== null ? chartData[hoveredIndex] : null;
+
   return (
     <div className="rounded-panel bg-[#111113] border border-white/[0.08] p-7 lg:p-8 shadow-card space-y-6">
-      {/* Top Header: Title + Range Pills */}
+      {/* Top Header: Title + Controls */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="space-y-1">
           <span className="text-xs font-semibold text-[#8e8e8e] uppercase tracking-wider block">
             Security Engine Telemetry
           </span>
           <h2 className="text-base sm:text-lg font-bold text-white tracking-tight flex items-center gap-2">
-            Vulnerabilities Detected vs. Total Function Calls Analyzed
-            {loadingCves && <Loader2 className="w-4 h-4 text-[#ff7300] animate-spin" />}
+            Vulnerabilities vs. Total Patches
           </h2>
+          <p className="text-xs text-[#8e8e8e]">
+            Per-repository AST call-site taint (vulnerabilities) vs. verified pull requests (patches)
+          </p>
         </div>
 
-        {/* Time-range toggle pills */}
-        <div className="flex items-center gap-1.5 p-1 rounded-pill bg-[#161619] border border-white/[0.06] text-xs">
-          {(["7D", "30D", "90D", "6M", "1Y"] as TimeRangeKey[]).map((range) => (
+        {/* View mode toggle pills */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 p-1 rounded-pill bg-[#161619] border border-white/[0.06] text-xs">
             <button
-              key={range}
-              onClick={() => {
-                setSelectedRange(range);
-                setHoveredIndex(null);
-              }}
-              className={`px-3 py-1 rounded-pill text-xs font-semibold transition-colors ${
-                selectedRange === range
+              onClick={() => setChartMode("bars")}
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-pill text-xs font-semibold transition-colors ${
+                chartMode === "bars"
                   ? "bg-[#28282a] text-white shadow-sm"
                   : "text-[#8e8e8e] hover:text-white"
               }`}
             >
-              {range === "7D" ? "7D (Live)" : range}
+              <BarChart3 className="w-3.5 h-3.5" />
+              <span>Grouped Bars</span>
             </button>
-          ))}
-        </div>
-      </div>
 
-      {/* Historical Range Notice (if user clicks beyond available 7D backend window) */}
-      {selectedRange !== "7D" && (
-        <div className="p-3 rounded-control bg-[#1c1815] border border-[#ff7300]/20 flex items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2 text-[#ff9540]">
-            <Info className="w-4 h-4 shrink-0" />
-            <span>
-              Backend NIST NVD ingestion streams a 7-day rolling window. Historical archive for <strong>{selectedRange}</strong> is not persisted.
-            </span>
-          </div>
-          <button
-            onClick={() => setSelectedRange("7D")}
-            className="px-2.5 py-1 rounded-control bg-[#ff7300]/20 text-[#ff7300] hover:bg-[#ff7300]/30 font-medium shrink-0 transition-colors"
-          >
-            Reset to 7D Live
-          </button>
-        </div>
-      )}
-
-      {/* Legend & Real Ingestion Metrics */}
-      <div className="flex flex-wrap items-center justify-between gap-4 text-xs pt-1 border-t border-white/[0.04]">
-        <div className="flex flex-wrap items-center gap-6">
-          {/* Series 1: Vulnerabilities Detected */}
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#ff7300] shadow-[0_0_6px_#ff7300]" />
-            <span className="text-white font-medium">Vulnerabilities Detected (Live NIST NVD)</span>
-          </div>
-
-          {/* Series 2: Total Function Calls Analyzed */}
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#00d2ff] shadow-[0_0_6px_#00d2ff]" />
-            <span className="text-white font-medium">Total Function Calls Analyzed (AST Scans)</span>
-          </div>
-
-          {/* Series 3: Pending PRs */}
-          <div
-            className="flex items-center gap-2 opacity-50"
-            title="Backend lacks a GET /pull-requests endpoint to track PRs over time"
-          >
-            <span className="w-2.5 h-2.5 rounded-full border border-dashed border-[#8e8e8e]" />
-            <span className="text-[#8e8e8e]">Pull Requests (Pending backend GET /pull-requests)</span>
-          </div>
-        </div>
-
-        <div className="text-xs text-[#8e8e8e] flex items-center gap-3">
-          <span>
-            Window: <span className="text-white font-mono font-semibold">Past 7 Days</span>
-          </span>
-          <span>·</span>
-          <span>
-            Total Calls Analyzed:{" "}
-            <span className="text-[#00d2ff] font-mono font-bold">
-              {totalCallsAnalyzed}
-            </span>
-          </span>
-          <span>·</span>
-          <span>
-            Total Disclosures:{" "}
-            <span className="text-[#ff7300] font-mono font-semibold">
-              {cves.length}
-            </span>
-          </span>
-        </div>
-      </div>
-
-      {/* SVG Interactive Chart Area */}
-      <div className="relative w-full pt-2">
-        {loadingCves && chartData.length === 0 ? (
-          <div className="h-[280px] flex flex-col items-center justify-center gap-3 text-center border border-white/[0.04] rounded-control bg-[#0d0d0f]">
-            <Loader2 className="w-6 h-6 text-[#ff7300] animate-spin" />
-            <p className="text-xs text-[#8e8e8e]">Ingesting live telemetry from GET /cves/latest...</p>
-          </div>
-        ) : chartData.length === 0 ? (
-          <div className="h-[280px] flex flex-col items-center justify-center gap-3 text-center border border-dashed border-white/[0.08] rounded-control bg-[#0d0d0f] p-6">
-            <AlertCircle className="w-8 h-8 text-[#ff7300]/60" />
-            <div className="space-y-1">
-              <p className="text-sm font-semibold text-white">No Telemetry Data Available</p>
-              <p className="text-xs text-[#8e8e8e] max-w-md">
-                Backend GET /cves/latest returned an empty set or is unreachable. Ensure the backend server is listening on port 8000.
-              </p>
-            </div>
             <button
-              onClick={() => refreshCves()}
-              className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-control bg-[#ff7300]/15 text-[#ff7300] hover:bg-[#ff7300]/25 text-xs font-semibold transition-colors"
+              onClick={() => setChartMode("line")}
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-pill text-xs font-semibold transition-colors ${
+                chartMode === "line"
+                  ? "bg-[#28282a] text-white shadow-sm"
+                  : "text-[#8e8e8e] hover:text-white"
+              }`}
             >
-              <RefreshCw className="w-3.5 h-3.5" />
-              Retry Ingestion
+              <TrendingUp className="w-3.5 h-3.5" />
+              <span>Sequential Line</span>
             </button>
           </div>
-        ) : (
+        </div>
+      </div>
+
+      {/* Metrics Banner */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="p-4 rounded-card bg-[#161619] border border-white/[0.04]">
+          <span className="text-[#8e8e8e] block text-xs mb-1 font-mono uppercase">
+            Scanned Repositories
+          </span>
+          <div className="flex items-baseline gap-2">
+            <span className="text-xl font-bold font-mono text-white">
+              {chartData.length}
+            </span>
+            <span className="text-xs text-[#8e8e8e]">active in session</span>
+          </div>
+        </div>
+
+        <div className="p-4 rounded-card bg-[#161619] border border-white/[0.04]">
+          <span className="text-[#8e8e8e] block text-xs mb-1 font-mono uppercase">
+            Total Vulnerabilities (Calls)
+          </span>
+          <div className="flex items-baseline gap-2">
+            <span className="text-xl font-bold font-mono text-[#ff7300]">
+              {totalVulnerabilities}
+            </span>
+            <span className="text-xs text-[#8e8e8e]">active AST call sites</span>
+          </div>
+        </div>
+
+        <div className="p-4 rounded-card bg-[#161619] border border-white/[0.04]">
+          <span className="text-[#8e8e8e] block text-xs mb-1 font-mono uppercase">
+            Total Patches (PRs)
+          </span>
+          <div className="flex items-baseline gap-2">
+            <span className="text-xl font-bold font-mono text-[#52e185]">
+              {totalPatches}
+            </span>
+            <span className="text-[11px] text-[#8e8e8e]">
+              {totalPatches > 0 ? "generated PRs" : "pending backend PR endpoint"}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Chart Area */}
+      {chartData.length === 0 ? (
+        <div className="p-16 rounded-card bg-[#0e0e10] border border-dashed border-white/10 text-center space-y-3">
+          <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[#ff7300] mx-auto">
+            <ShieldAlert className="w-6 h-6" />
+          </div>
+          <div className="space-y-1">
+            <h4 className="text-sm font-semibold text-white">No repository AST scans recorded yet</h4>
+            <p className="text-xs text-[#8e8e8e] max-w-md mx-auto leading-relaxed">
+              Scan a repository on the Overview or Repositories page to generate real client-side <code className="text-[#ff7300] font-mono">total_function_call</code> vulnerability data and compare it against opened patches.
+            </p>
+          </div>
+          <div className="pt-2">
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-pill bg-white text-black font-semibold text-xs shadow-glowPill hover:shadow-glowPillHover transition-all"
+            >
+              <span>Scan a Repository</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <div className="relative w-full rounded-card bg-[#0e0e10] border border-white/[0.04] p-4 sm:p-6 overflow-hidden">
           <svg
             viewBox={`0 0 ${width} ${height}`}
             className="w-full h-auto overflow-visible select-none"
           >
-            {/* Horizontal gridlines with Y-axis tick values */}
-            {yTicks.map((val, i) => {
-              const y = getY(val);
+            <defs>
+              {/* Vulnerabilities Gradients */}
+              <linearGradient id="vulnBarGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#ff7300" stopOpacity="0.9" />
+                <stop offset="100%" stopColor="#ff5252" stopOpacity="0.4" />
+              </linearGradient>
+
+              {/* Patches Gradients */}
+              <linearGradient id="patchBarGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#52e185" stopOpacity="0.9" />
+                <stop offset="100%" stopColor="#00d2ff" stopOpacity="0.4" />
+              </linearGradient>
+
+              <filter id="glowVuln" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="0" stdDeviation="4" floodColor="#ff7300" floodOpacity="0.5" />
+              </filter>
+              <filter id="glowPatch" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="0" stdDeviation="4" floodColor="#52e185" floodOpacity="0.5" />
+              </filter>
+            </defs>
+
+            {/* Horizontal Grid Lines */}
+            {yTicks.map((tickVal) => {
+              const y = getY(tickVal);
               return (
-                <g key={i}>
+                <g key={tickVal}>
                   <line
                     x1={paddingX}
                     y1={y}
                     x2={width - paddingX}
                     y2={y}
-                    stroke="rgba(255, 255, 255, 0.05)"
-                    strokeDasharray="4 4"
+                    stroke="rgba(255, 255, 255, 0.06)"
+                    strokeDasharray={tickVal === 0 ? undefined : "3 3"}
+                    strokeWidth="1"
                   />
                   <text
                     x={paddingX - 12}
                     y={y + 3.5}
                     textAnchor="end"
-                    className="text-[10px] fill-[#666666] font-mono"
+                    fill="#8e8e8e"
+                    fontSize="10"
+                    fontFamily="monospace"
                   >
-                    {val}
+                    {tickVal}
                   </text>
                 </g>
               );
             })}
 
-            {/* Line 1: Vulnerabilities Detected (Amber) */}
-            <path
-              d={detectedLine}
-              fill="none"
-              stroke="#ff7300"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="drop-shadow-[0_0_8px_rgba(255,115,0,0.45)]"
-            />
+            {/* GROUPED BARS MODE */}
+            {chartMode === "bars" &&
+              chartData.map((d, i) => {
+                const centerX = paddingX + (i + 0.5) * slotWidth;
+                const hasVulns = d.vulnerabilities > 0;
+                const hasPatches = d.patches > 0;
 
-            {/* Line 2: Total Function Calls Analyzed (Cyan) */}
-            <path
-              d={callsLine}
-              fill="none"
-              stroke="#00d2ff"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="drop-shadow-[0_0_8px_rgba(0,210,255,0.45)]"
-            />
+                const rawVulnHeight = Math.max(0, height - paddingY - getY(d.vulnerabilities));
+                const rawPatchHeight = Math.max(0, height - paddingY - getY(d.patches));
 
-            {/* Interactive Data Point Vertices for Both Series */}
-            {points.map((p, idx) => (
-              <g
-                key={idx}
-                className="cursor-pointer"
-                onMouseEnter={() => setHoveredIndex(idx)}
-                onMouseLeave={() => setHoveredIndex(null)}
-              >
-                {/* Hit target for easy hover */}
-                <rect
-                  x={p.x - 20}
-                  y={0}
-                  width={40}
-                  height={height}
-                  fill="transparent"
-                />
+                // If value is 0, render a 3px baseline indicator cap so the column is visually present and acknowledged
+                const vulnBarHeight = hasVulns ? Math.max(rawVulnHeight, 6) : 3;
+                const patchBarHeight = hasPatches ? Math.max(rawPatchHeight, 6) : 3;
 
-                {/* Series 1 Vertex: Detected Vulnerabilities (Amber) */}
-                {hoveredIndex === idx && (
-                  <circle
-                    cx={p.x}
-                    cy={p.yDetected}
-                    r={9}
-                    fill="#ff7300"
-                    fillOpacity={0.25}
+                const vulnBarY = hasVulns ? getY(d.vulnerabilities) : height - paddingY - 3;
+                const patchBarY = hasPatches ? getY(d.patches) : height - paddingY - 3;
+
+                const bar1X = centerX - barWidth - barGap / 2;
+                const bar2X = centerX + barGap / 2;
+                const isHovered = hoveredIndex === i;
+
+                return (
+                  <g
+                    key={d.id}
+                    onMouseEnter={() => setHoveredIndex(i)}
+                    onMouseLeave={() => setHoveredIndex(null)}
+                    className="cursor-pointer"
+                  >
+                    {/* Hover highlight background column */}
+                    <rect
+                      x={paddingX + i * slotWidth + 4}
+                      y={paddingY}
+                      width={Math.max(slotWidth - 8, 20)}
+                      height={height - paddingY * 2}
+                      fill={isHovered ? "rgba(255, 255, 255, 0.03)" : "transparent"}
+                      rx="6"
+                    />
+
+                    {/* Numeric Count Badges above bars */}
+                    <text
+                      x={bar1X + barWidth / 2}
+                      y={vulnBarY - 6}
+                      textAnchor="middle"
+                      fill={hasVulns ? "#ff7300" : "#666666"}
+                      fontSize="10"
+                      fontFamily="monospace"
+                      fontWeight="bold"
+                    >
+                      {d.vulnerabilities}
+                    </text>
+
+                    <text
+                      x={bar2X + barWidth / 2}
+                      y={patchBarY - 6}
+                      textAnchor="middle"
+                      fill={hasPatches ? "#52e185" : "#666666"}
+                      fontSize="10"
+                      fontFamily="monospace"
+                      fontWeight="bold"
+                    >
+                      {d.patches}
+                    </text>
+
+                    {/* Bar 1: Vulnerabilities (total_function_call) */}
+                    <rect
+                      x={bar1X}
+                      y={vulnBarY}
+                      width={barWidth}
+                      height={vulnBarHeight}
+                      rx={hasVulns ? "4" : "1.5"}
+                      fill={hasVulns ? "url(#vulnBarGrad)" : "#ff7300"}
+                      fillOpacity={hasVulns ? 1 : 0.4}
+                      stroke="#ff7300"
+                      strokeWidth={isHovered ? "1.5" : "0.5"}
+                      filter={isHovered ? "url(#glowVuln)" : undefined}
+                    />
+
+                    {/* Bar 2: Patches (Pull Requests) */}
+                    <rect
+                      x={bar2X}
+                      y={patchBarY}
+                      width={barWidth}
+                      height={patchBarHeight}
+                      rx={hasPatches ? "4" : "1.5"}
+                      fill={hasPatches ? "url(#patchBarGrad)" : "#52e185"}
+                      fillOpacity={hasPatches ? 1 : 0.4}
+                      stroke="#52e185"
+                      strokeWidth={isHovered ? "1.5" : "0.5"}
+                      filter={isHovered ? "url(#glowPatch)" : undefined}
+                    />
+
+                    {/* X-axis Label: Scanned Repository Name */}
+                    <text
+                      x={centerX}
+                      y={height - paddingY + 22}
+                      textAnchor="middle"
+                      fill={isHovered ? "#ffffff" : "#8e8e8e"}
+                      fontSize="11"
+                      fontFamily="monospace"
+                      fontWeight={isHovered ? "bold" : "normal"}
+                    >
+                      {d.displayName.length > 14
+                        ? d.displayName.slice(0, 12) + "…"
+                        : d.displayName}
+                    </text>
+                  </g>
+                );
+              })}
+
+            {/* SEQUENTIAL LINE MODE */}
+            {chartMode === "line" && (
+              <>
+                {/* Vulnerabilities Line */}
+                {vulnsLine && (
+                  <path
+                    d={vulnsLine}
+                    fill="none"
+                    stroke="#ff7300"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                   />
                 )}
-                <circle
-                  cx={p.x}
-                  cy={p.yDetected}
-                  r={hoveredIndex === idx ? 6 : 4}
-                  fill={hoveredIndex === idx ? "#ffffff" : "#ff7300"}
-                  stroke="#111113"
-                  strokeWidth="2"
-                  className="transition-all duration-150"
-                />
 
-                {/* Series 2 Vertex: Total Function Calls (Cyan) */}
-                {hoveredIndex === idx && (
-                  <circle
-                    cx={p.x}
-                    cy={p.yCalls}
-                    r={9}
-                    fill="#00d2ff"
-                    fillOpacity={0.25}
+                {/* Patches Line */}
+                {patchesLine && (
+                  <path
+                    d={patchesLine}
+                    fill="none"
+                    stroke="#52e185"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                   />
                 )}
-                <circle
-                  cx={p.x}
-                  cy={p.yCalls}
-                  r={hoveredIndex === idx ? 6 : 4}
-                  fill={hoveredIndex === idx ? "#ffffff" : "#00d2ff"}
-                  stroke="#111113"
-                  strokeWidth="2"
-                  className="transition-all duration-150"
-                />
-              </g>
-            ))}
 
-            {/* X-Axis labels (Actual dates, e.g. Sep 20, Sep 21) */}
-            {chartData.map((d, idx) => (
-              <text
-                key={idx}
-                x={getX(idx)}
-                y={height - 12}
-                textAnchor="middle"
-                className="text-[11px] fill-[#8e8e8e] font-sans"
-              >
-                {d.label}
-              </text>
-            ))}
+                {/* Line Points */}
+                {linePoints.map((p, i) => {
+                  const isHovered = hoveredIndex === i;
+                  const sameY = Math.abs(p.yVulns - p.yPatches) < 6;
+                  const vulnX = sameY ? p.x - 6 : p.x;
+                  const patchX = sameY ? p.x + 6 : p.x;
 
-            {/* Interactive Hover Guide & Multi-Series Tooltip with Per-File Breakdown */}
-            {activeHoverPoint && activeHoverItem && (
-              <g pointerEvents="none">
-                <line
-                  x1={activeHoverPoint.x}
-                  y1={paddingY}
-                  x2={activeHoverPoint.x}
-                  y2={height - paddingY}
-                  stroke="rgba(255, 255, 255, 0.25)"
-                  strokeDasharray="2 2"
-                />
-
-                <foreignObject
-                  x={Math.min(
-                    Math.max(activeHoverPoint.x - 110, 10),
-                    width - 240
-                  )}
-                  y={Math.max(
-                    Math.min(activeHoverPoint.yDetected, activeHoverPoint.yCalls) - 130,
-                    10
-                  )}
-                  width="220"
-                  height="125"
-                >
-                  <div className="p-3 rounded-control bg-[#161619] border border-white/20 shadow-2xl space-y-1.5">
-                    <div className="text-[10px] text-[#8e8e8e] font-semibold flex items-center justify-between">
-                      <span>{activeHoverItem.label}</span>
-                      {activeHoverItem.scanCount > 0 && (
-                        <span className="text-[#00d2ff] font-mono text-[9px]">
-                          {activeHoverItem.scanCount} scan{activeHoverItem.scanCount > 1 ? "s" : ""}
-                        </span>
+                  return (
+                    <g
+                      key={p.data.id}
+                      onMouseEnter={() => setHoveredIndex(i)}
+                      onMouseLeave={() => setHoveredIndex(null)}
+                      className="cursor-pointer"
+                    >
+                      {/* Vertical tracker */}
+                      {isHovered && (
+                        <line
+                          x1={p.x}
+                          y1={paddingY}
+                          x2={p.x}
+                          y2={height - paddingY}
+                          stroke="rgba(255, 255, 255, 0.15)"
+                          strokeDasharray="2 2"
+                        />
                       )}
-                    </div>
 
-                    {/* Series 1 count */}
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="flex items-center gap-1.5 text-[#ff8c2e]">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#ff7300]" />
-                        Vulnerabilities:
-                      </span>
-                      <span className="font-mono font-bold text-white">
-                        {activeHoverItem.detected}
-                      </span>
-                    </div>
+                      {/* Vuln vertex */}
+                      <circle
+                        cx={vulnX}
+                        cy={p.yVulns}
+                        r={isHovered ? 6 : 4}
+                        fill="#ff7300"
+                        stroke="#111113"
+                        strokeWidth="2"
+                        filter={isHovered ? "url(#glowVuln)" : undefined}
+                      />
 
-                    {/* Series 2 count */}
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="flex items-center gap-1.5 text-[#00d2ff]">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#00d2ff]" />
-                        Function Calls:
-                      </span>
-                      <span className="font-mono font-bold text-white">
-                        {activeHoverItem.total_function_call}
-                      </span>
-                    </div>
+                      {/* Patch vertex */}
+                      <circle
+                        cx={patchX}
+                        cy={p.yPatches}
+                        r={isHovered ? 6 : 4}
+                        fill="#52e185"
+                        stroke="#111113"
+                        strokeWidth="2"
+                        filter={isHovered ? "url(#glowPatch)" : undefined}
+                      />
 
-                    {/* Per-file Breakdown */}
-                    {activeHoverItem.files.length > 0 ? (
-                      <div className="pt-1 border-t border-white/[0.08] text-[9px] text-[#c8c8c8] space-y-0.5 max-h-[42px] overflow-hidden">
-                        <div className="text-[8px] text-[#8e8e8e] uppercase tracking-wider font-semibold">
-                          Per-File Call Breakdown:
-                        </div>
-                        {activeHoverItem.files.slice(0, 2).map((f, i) => (
-                          <div key={i} className="flex items-center justify-between font-mono truncate">
-                            <span className="truncate max-w-[130px]" title={f.file}>
-                              {f.file.split(/[/\\]/).pop() || f.file}
-                            </span>
-                            <span className="text-[#00d2ff] font-bold">
-                              {f.total_calls ?? (f.calls?.length || 0)} calls
-                            </span>
-                          </div>
-                        ))}
-                        {activeHoverItem.files.length > 2 && (
-                          <div className="text-[#8e8e8e] text-[8px]">
-                            +{activeHoverItem.files.length - 2} more files
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="pt-1 border-t border-white/[0.08] text-[9px] text-[#666666]">
-                        No repo AST scans recorded on this date
-                      </div>
-                    )}
-                  </div>
-                </foreignObject>
-              </g>
+                      {/* X-axis Label */}
+                      <text
+                        x={p.x}
+                        y={height - paddingY + 22}
+                        textAnchor="middle"
+                        fill={isHovered ? "#ffffff" : "#8e8e8e"}
+                        fontSize="11"
+                        fontFamily="monospace"
+                        fontWeight={isHovered ? "bold" : "normal"}
+                      >
+                        {p.data.displayName.length > 14
+                          ? p.data.displayName.slice(0, 12) + "…"
+                          : p.data.displayName}
+                      </text>
+                    </g>
+                  );
+                })}
+              </>
             )}
           </svg>
-        )}
+
+          {/* Interactive Tooltip Card */}
+          {activeHoverItem && (
+            <div className="mt-4 p-4 rounded-control bg-[#161619] border border-white/10 text-xs flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in duration-150 font-mono">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <GitBranch className="w-3.5 h-3.5 text-[#ff7300]" />
+                  <span className="font-bold text-white text-xs">
+                    {activeHoverItem.repo}
+                  </span>
+                  <span className="text-[10px] text-[#8e8e8e] px-1.5 py-0.5 rounded bg-white/5 border border-white/5">
+                    Scan #{activeHoverItem.scanIndex}
+                  </span>
+                  <span
+                    className={`text-[10px] px-2 py-0.5 rounded border uppercase font-semibold ${
+                      activeHoverItem.vulnerabilities > 0
+                        ? "bg-[#ffb300]/10 text-[#ffb300] border-[#ffb300]/25"
+                        : "bg-[#79b0ff]/10 text-[#79b0ff] border-[#79b0ff]/25"
+                    }`}
+                  >
+                    {activeHoverItem.vulnerabilities > 0
+                      ? "Level 2: Actively Called"
+                      : "Level 1: Symbol Imported (Uncalled)"}
+                  </span>
+                </div>
+                <div className="text-[11px] text-[#8e8e8e]">
+                  {activeHoverItem.files.length} scanned file{activeHoverItem.files.length === 1 ? "" : "s"} analyzed
+                  {activeHoverItem.vulnerabilities === 0 && " · 0 active call sites detected"}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#ff7300]" />
+                  <span className="text-[#8e8e8e]">Vulnerabilities:</span>
+                  <span className="text-[#ff7300] font-bold">
+                    {activeHoverItem.vulnerabilities} call sites
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#52e185]" />
+                  <span className="text-[#8e8e8e]">Patches:</span>
+                  <span className="text-[#52e185] font-bold">
+                    {activeHoverItem.patches > 0
+                      ? `${activeHoverItem.patches} PRs`
+                      : "0 (Pending PR API)"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Legend & Telemetry Metadata */}
+      <div className="pt-2 border-t border-white/[0.06] flex flex-wrap items-center justify-between gap-4 text-xs font-mono">
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2">
+            <span className="w-3 h-3 rounded-sm bg-[#ff7300]" />
+            <span className="text-[#c8c8c8]">
+              Vulnerabilities (<span className="text-[#ff7300]">total_function_call</span>)
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="w-3 h-3 rounded-sm bg-[#52e185]" />
+            <span className="text-[#c8c8c8]">
+              Patches (<span className="text-[#52e185]">Pull Requests</span>)
+            </span>
+          </div>
+        </div>
+
+        <div className="text-[#8e8e8e] text-[11px] flex items-center gap-2">
+          <Info className="w-3.5 h-3.5 text-[#ff7300]" />
+          <span>Non-temporal axis: indexed by scanned repositories in execution order.</span>
+        </div>
       </div>
     </div>
   );

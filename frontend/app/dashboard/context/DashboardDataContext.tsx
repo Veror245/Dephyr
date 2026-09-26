@@ -14,6 +14,7 @@ import {
   VulnerabilityRecord,
   AgentLogEvent,
   PullRequestRecord,
+  RemediationHistoryItem,
   MOCK_PULL_REQUESTS,
 } from "../lib/mock-data";
 import { api, computeTotalFunctionCalls, FileScanResult } from "@/app/lib/api";
@@ -44,6 +45,7 @@ interface DashboardDataContextType {
   cves: VulnerabilityRecord[];
   agentEvents: AgentLogEvent[];
   pullRequests: PullRequestRecord[];
+  remediationHistory: RemediationHistoryItem[];
   scanHistory: ScanTelemetryRecord[];
   latestScan: ScanTelemetryRecord | null;
   stats: DashboardStats;
@@ -54,6 +56,8 @@ interface DashboardDataContextType {
   updateRepository: (id: string, updates: Partial<RepositoryRecord>) => void;
   addAgentEvent: (event: AgentLogEvent) => void;
   updateCve: (cveId: string, updates: Partial<VulnerabilityRecord>) => void;
+  addRemediation: (item: RemediationHistoryItem) => void;
+  addPullRequest: (pr: PullRequestRecord) => void;
   refreshCves: () => Promise<void>;
   resetToDefaults: () => void;
 }
@@ -68,10 +72,19 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
   const [cves, setCves] = useState<VulnerabilityRecord[]>([]);
   const [agentEvents, setAgentEvents] = useState<AgentLogEvent[]>([]);
   const [pullRequests, setPullRequests] = useState<PullRequestRecord[]>([]);
+  const [remediationHistory, setRemediationHistory] = useState<RemediationHistoryItem[]>([]);
   const [scanHistory, setScanHistory] = useState<ScanTelemetryRecord[]>([]);
   const [latestScan, setLatestScan] = useState<ScanTelemetryRecord | null>(null);
   const [loadingCves, setLoadingCves] = useState(false);
   const [cveError, setCveError] = useState<string | null>(null);
+
+  const addRemediation = useCallback((item: RemediationHistoryItem) => {
+    setRemediationHistory((prev) => [item, ...prev]);
+  }, []);
+
+  const addPullRequest = useCallback((pr: PullRequestRecord) => {
+    setPullRequests((prev) => [pr, ...prev]);
+  }, []);
 
   // Update a specific CVE in state
   const updateCve = useCallback(
@@ -268,12 +281,12 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
         risk = "CRITICAL";
         activeExposures = 1;
         remediationStatus = `Action Required: ${total_function_call} active call site${total_function_call > 1 ? "s" : ""} detected`;
-        affectedCves = [packageName ? `${packageName} AST Taint` : "AST Taint Detected"];
+        affectedCves = [packageName || "AST Taint Detected"];
       } else if (totalImports > 0 || perFileResults.length > 0) {
         risk = "MEDIUM";
         activeExposures = 1;
         remediationStatus = `Investigating: Imported in code, 0 active calls`;
-        affectedCves = [packageName ? `${packageName} (Uncalled)` : "Imported Symbol"];
+        affectedCves = [packageName || "Imported Symbol"];
       }
 
       // Record telemetry data point with real per-file array and computed total_function_call
@@ -453,6 +466,10 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
   const resetToDefaults = useCallback(() => {
     setRepositories([]);
     setAgentEvents([]);
+    setPullRequests([]);
+    setRemediationHistory([]);
+    setScanHistory([]);
+    setLatestScan(null);
   }, []);
 
   return (
@@ -462,6 +479,7 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
         cves,
         agentEvents,
         pullRequests,
+        remediationHistory,
         scanHistory,
         latestScan,
         stats,
@@ -472,6 +490,8 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
         updateRepository,
         addAgentEvent,
         updateCve,
+        addRemediation,
+        addPullRequest,
         refreshCves,
         resetToDefaults,
       }}

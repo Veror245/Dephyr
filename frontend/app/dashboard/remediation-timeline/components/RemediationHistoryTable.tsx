@@ -1,13 +1,23 @@
 "use client";
 
 import React, { useState } from "react";
-import { MOCK_REMEDIATION_HISTORY, RemediationHistoryItem } from "../../lib/mock-data";
-import { GitPullRequest, Play, RotateCcw, Loader2, CheckCircle2, AlertCircle, ArrowRight } from "lucide-react";
+import { RemediationHistoryItem } from "../../lib/mock-data";
+import {
+  GitPullRequest,
+  Play,
+  RotateCcw,
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
+  ArrowRight,
+  ShieldCheck,
+} from "lucide-react";
 import Link from "next/link";
 import { api, JobSubmitResponse } from "@/app/lib/api";
+import { useDashboardData } from "../../context/DashboardDataContext";
 
 export default function RemediationHistoryTable() {
-  const [history, setHistory] = useState<RemediationHistoryItem[]>(MOCK_REMEDIATION_HISTORY);
+  const { remediationHistory, addRemediation } = useDashboardData();
   const [submittingApply, setSubmittingApply] = useState(false);
   const [submittingFollowup, setSubmittingFollowup] = useState(false);
   const [lastJob, setLastJob] = useState<JobSubmitResponse | null>(null);
@@ -39,11 +49,14 @@ export default function RemediationHistoryTable() {
         cveId: "CVE-2026-4891",
         package: "example-lib",
         status: "In Progress",
-        prNumber: 42,
-        latency: "Running",
-        resolvedAt: "Just now",
+        prNumber: null, // Real honest status: PR creation is pending worker completion
+        latency: "Queued",
+        resolvedAt: new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
       };
-      setHistory([newItem, ...history]);
+      addRemediation(newItem);
     } catch (err) {
       setRemediationError(
         err instanceof Error ? err.message : "Failed to queue remediation job"
@@ -77,11 +90,14 @@ export default function RemediationHistoryTable() {
         cveId: "CVE-2026-4891",
         package: "example-lib (follow-up)",
         status: "In Progress",
-        prNumber: 42,
+        prNumber: null, // Pending worker completion
         latency: "Queued",
-        resolvedAt: "Just now",
+        resolvedAt: new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
       };
-      setHistory([newItem, ...history]);
+      addRemediation(newItem);
     } catch (err) {
       setRemediationError(
         err instanceof Error ? err.message : "Failed to submit follow-up remediation"
@@ -99,11 +115,15 @@ export default function RemediationHistoryTable() {
             Individual Remediation Audit Log
           </h3>
           <span className="text-xs text-[#8e8e8e]">
-            Showing latest {history.length} verified runs
+            {remediationHistory.length > 0
+              ? `Showing ${remediationHistory.length} session verified run${
+                  remediationHistory.length === 1 ? "" : "s"
+                }`
+              : "0 active session runs recorded"}
           </span>
         </div>
 
-        {/* Action Triggers */}
+        {/* Action Triggers for live backend testing */}
         <div className="flex items-center gap-2">
           <button
             onClick={handleApplyRemediation}
@@ -166,74 +186,100 @@ export default function RemediationHistoryTable() {
         </div>
       )}
 
-      <div className="overflow-x-auto custom-scrollbar">
-        <table className="w-full text-left text-xs border-collapse">
-          <thead>
-            <tr className="border-b border-white/[0.06] bg-[#0e0e10] text-[#8e8e8e] uppercase text-[10px] tracking-wider">
-              <th className="py-3.5 px-6 font-semibold">Repository</th>
-              <th className="py-3.5 px-6 font-semibold">Remediated CVE</th>
-              <th className="py-3.5 px-6 font-semibold">Target Package</th>
-              <th className="py-3.5 px-6 font-semibold">Status</th>
-              <th className="py-3.5 px-6 font-semibold">PR Proof</th>
-              <th className="py-3.5 px-6 font-semibold">Latency</th>
-              <th className="py-3.5 px-6 text-right font-semibold">Resolved</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/[0.04]">
-            {history.map((item) => (
-              <tr
-                key={item.id}
-                className="hover:bg-[#161619] transition-colors"
-              >
-                <td className="py-4 px-6 font-mono font-bold text-white text-xs sm:text-sm">
-                  {item.repo}
-                </td>
-
-                <td className="py-4 px-6 font-mono text-[#ff7300] text-xs sm:text-sm">
-                  {item.cveId}
-                </td>
-
-                <td className="py-4 px-6 text-[#c8c8c8] text-xs">
-                  {item.package}
-                </td>
-
-                <td className="py-4 px-6">
-                  <span
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[10px] font-semibold uppercase ${
-                      item.status === "Resolved"
-                        ? "bg-[#52e185]/15 text-[#52e185]"
-                        : item.status === "In Progress"
-                        ? "bg-[#ffb300]/15 text-[#ffb300]"
-                        : "bg-white/10 text-[#c8c8c8]"
-                    }`}
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                    {item.status}
-                  </span>
-                </td>
-
-                <td className="py-4 px-6">
-                  <Link
-                    href="/dashboard/pull-requests"
-                    className="inline-flex items-center gap-1.5 font-mono text-xs text-[#79b0ff] hover:underline"
-                  >
-                    <GitPullRequest className="w-3.5 h-3.5" />
-                    PR #{item.prNumber}
-                  </Link>
-                </td>
-
-                <td className="py-4 px-6 text-[#8e8e8e] font-mono text-xs">
-                  {item.latency}
-                </td>
-
-                <td className="py-4 px-6 text-right text-[#8e8e8e] font-mono text-xs">
-                  {item.resolvedAt}
-                </td>
+      {remediationHistory.length === 0 ? (
+        <div className="p-12 text-center space-y-3">
+          <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[#8e8e8e] mx-auto">
+            <ShieldCheck className="w-6 h-6" />
+          </div>
+          <div className="space-y-1">
+            <h4 className="text-sm font-semibold text-white">No remediations recorded yet</h4>
+            <p className="text-xs text-[#8e8e8e] max-w-md mx-auto leading-relaxed">
+              No automated patch jobs have been executed in this session. Trigger autonomous remediation from an AST scan result or click Apply Patch above to test live backend worker submission.
+            </p>
+          </div>
+          <div className="pt-2">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-pill bg-[#161619] border border-white/[0.06] text-[11px] font-mono text-[#8e8e8e]">
+              <span>Pending backend PR-list endpoint · Session audit active</span>
+            </span>
+          </div>
+        </div>
+      ) : (
+        <div className="overflow-x-auto custom-scrollbar">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr className="border-b border-white/[0.06] bg-[#0e0e10] text-[#8e8e8e] uppercase text-[10px] tracking-wider">
+                <th className="py-3.5 px-6 font-semibold">Repository</th>
+                <th className="py-3.5 px-6 font-semibold">Remediated CVE</th>
+                <th className="py-3.5 px-6 font-semibold">Target Package</th>
+                <th className="py-3.5 px-6 font-semibold">Status</th>
+                <th className="py-3.5 px-6 font-semibold">PR Proof</th>
+                <th className="py-3.5 px-6 font-semibold">Latency</th>
+                <th className="py-3.5 px-6 text-right font-semibold">Resolved</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody className="divide-y divide-white/[0.04]">
+              {remediationHistory.map((item) => (
+                <tr
+                  key={item.id}
+                  className="hover:bg-[#161619] transition-colors"
+                >
+                  <td className="py-4 px-6 font-mono font-bold text-white text-xs sm:text-sm">
+                    {item.repo}
+                  </td>
+
+                  <td className="py-4 px-6 font-mono text-[#ff7300] text-xs sm:text-sm">
+                    {item.cveId}
+                  </td>
+
+                  <td className="py-4 px-6 text-[#c8c8c8] text-xs">
+                    {item.package}
+                  </td>
+
+                  <td className="py-4 px-6">
+                    <span
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[10px] font-semibold uppercase ${
+                        item.status === "Resolved"
+                          ? "bg-[#52e185]/15 text-[#52e185]"
+                          : item.status === "In Progress"
+                          ? "bg-[#ffb300]/15 text-[#ffb300]"
+                          : "bg-white/10 text-[#c8c8c8]"
+                      }`}
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                      {item.status}
+                    </span>
+                  </td>
+
+                  <td className="py-4 px-6">
+                    {item.prNumber ? (
+                      <Link
+                        href="/dashboard/pull-requests"
+                        className="inline-flex items-center gap-1.5 font-mono text-xs text-[#79b0ff] hover:underline"
+                      >
+                        <GitPullRequest className="w-3.5 h-3.5" />
+                        PR #{item.prNumber}
+                      </Link>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 text-[#8e8e8e] italic font-mono text-xs">
+                        <GitPullRequest className="w-3.5 h-3.5 opacity-50" />
+                        <span>Pending PR Creation</span>
+                      </span>
+                    )}
+                  </td>
+
+                  <td className="py-4 px-6 text-[#8e8e8e] font-mono text-xs">
+                    {item.latency}
+                  </td>
+
+                  <td className="py-4 px-6 text-right text-[#8e8e8e] font-mono text-xs">
+                    {item.resolvedAt}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

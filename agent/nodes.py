@@ -1,17 +1,16 @@
+# nodes.py
 import json
-from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
 from langgraph.prebuilt import ToolNode
 
 from config import _post_and_wait, MOCK_MODE
 from state import DephyrState, ExposureReport
 from tools import agent_tools
+from langchain_ollama import ChatOllama
 
 # ============================================================================
 # LLM & STATIC NODES
 # ============================================================================
-from langchain_ollama import ChatOllama
-
 # Initialize the local Ollama model
 ollama_llm = ChatOllama(
     model="gemma4:31b-cloud",
@@ -65,19 +64,31 @@ dynamic_prompt = ChatPromptTemplate.from_messages([
         "  Step 3. If CI failed, call `get_ci_logs`. If CI passed, STOP and summarize.\n"
         "  Step 4. If you got logs, call `apply_followup_patch` to fix the code.\n"
     )),
-    ("human", "Begin or continue the remediation process. What is your EXACT next step?"),
-    ("placeholder", "{messages}")
+    ("placeholder", "{messages}"),
+    ("human", "Review the history above. If the CI passed, STOP and summarize. Otherwise, what is your EXACT next step? ONLY call one tool.")
 ])
 
 dynamic_chain = dynamic_prompt | ollama_llm.bind_tools(agent_tools)
 
 def dynamic_remediation_node(state: DephyrState) -> dict:
+    print("\n[LLM DEBUG] ----- ENTERING REACT LOOP -----")
+    print(f"[LLM DEBUG] Current Message History Length: {len(state.get('messages', []))}")
+    
     response = dynamic_chain.invoke({
         "cve_id": state["cve_id"],
         "repo_name": state["repo_name"],
         "report": state["exposure_report"].model_dump_json(),
         "messages": state.get("messages", [])
     })
+    
+    print(f"[LLM DEBUG] Raw Text Output: {response.content}")
+    
+    if hasattr(response, 'tool_calls') and response.tool_calls:
+        print(f"[LLM DEBUG] Tool Calls Detected: {response.tool_calls}")
+    else:
+        print("[LLM DEBUG] NO TOOL CALLS DETECTED. The model is responding with text only.")
+        
+    print("[LLM DEBUG] ---------------------------------")
     return {"messages": [response]}
 
 tool_executor_node = ToolNode(agent_tools)
