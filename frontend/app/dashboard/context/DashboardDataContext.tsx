@@ -62,7 +62,7 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
     setLoadingCves(true);
     setCveError(null);
     try {
-      const response = await api.cves.getLatest(10);
+      const response = await api.cves.getLatest(50);
       if (response && Array.isArray(response.cves)) {
         if (response.cves.length === 0) {
           setCves([]);
@@ -83,6 +83,7 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
           detectedAt: item.published
             ? new Date(item.published).toLocaleDateString()
             : "Recently disclosed",
+          publishedAt: item.published || undefined,
           summary: `Disclosed vulnerability ${item.id} ingested from live NVD stream.`,
           description: "Fetching full vulnerability disclosure advisory...",
         }));
@@ -124,6 +125,7 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
                   detectedAt: d.published
                     ? new Date(d.published).toLocaleDateString()
                     : rec.detectedAt,
+                  publishedAt: d.published || rec.publishedAt,
                 };
               }
               return rec;

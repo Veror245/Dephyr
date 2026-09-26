@@ -4,8 +4,11 @@ import React from "react";
 import TimelineChart from "./components/TimelineChart";
 import RemediationHistoryTable from "./components/RemediationHistoryTable";
 import { TrendingUp } from "lucide-react";
+import { useDashboardData } from "../context/DashboardDataContext";
 
 export default function RemediationTimelinePage() {
+  const { cves, loadingCves } = useDashboardData();
+
   return (
     <div className="space-y-6 w-full">
       {/* Top Banner: Floating rounded panel */}
@@ -16,21 +19,23 @@ export default function RemediationTimelinePage() {
           </div>
           <div className="space-y-1">
             <h2 className="text-base font-bold text-white tracking-tight">
-              Remediation Velocity & MTTR
+              Remediation Velocity & Telemetry
             </h2>
             <p className="text-xs sm:text-sm text-[#8e8e8e] leading-relaxed max-w-3xl">
-              Longitudinal tracking of disclosed CVEs versus autonomous patches verified with passing test suites.
+              Longitudinal tracking of disclosed CVEs ingested from live NIST NVD streams. PR resolution metrics pending backend PR tracking.
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-4 text-xs font-mono shrink-0 pl-14 md:pl-0">
           <div className="px-3.5 py-1.5 rounded-pill bg-[#161619] border border-white/[0.06] flex items-center gap-2">
-            <span className="text-[#8e8e8e]">30-Day Autonomy Rate:</span>
-            <span className="text-[#52e185] font-bold">96.8%</span>
+            <span className="text-[#8e8e8e]">Live Ingested:</span>
+            <span className="text-[#ff7300] font-bold">
+              {loadingCves ? "..." : `${cves.length} CVEs`}
+            </span>
             <span className="text-[#8e8e8e]">·</span>
-            <span className="text-[#8e8e8e]">Avg MTTR:</span>
-            <span className="text-white font-bold">1m 48s</span>
+            <span className="text-[#8e8e8e]">Window:</span>
+            <span className="text-white font-bold">7-Day Rolling</span>
           </div>
         </div>
       </div>
